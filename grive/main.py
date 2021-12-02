@@ -20,16 +20,16 @@ def main():
         sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
         import common_utils
         import auth_utils
-        # import edit_config
-        # import file_ops
+        import config_utils
+        import drive_utils
         # import cron_handle
 
     # using relativistic imports directly if launched as package
     except ImportError:
         from . import common_utils
         from . import auth_utils
-        # from . import edit_config
-        # from . import file_ops
+        from . import config_utils
+        from . import drive_utils
         # from . import cron_handle
 
     arguments = sys.argv[1:]
@@ -55,8 +55,10 @@ def main():
             arg_index += 1
             # To do...
         elif arguments[arg_index] == "-s" or arguments[arg_index] == "-share" or arguments[arg_index] == "share":
-            arg_index += 1
-            # To do...
+            arg_index += 2
+            if is_matching(arg_index, len(arguments)):
+                drive_utils.share_link()
+
         elif arguments[arg_index] == "-ls" or arguments[arg_index] == "-l" or arguments[arg_index] == "ls":
             print("List local and remote")
         else:
