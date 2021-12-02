@@ -15,7 +15,6 @@ except ImportError:
     from . import common_utils
     from . import config_utils
 
-# Upload file/folder to GDrive, last argument is relative address
 def f_create(drive, addr, fold_id, rel_addr, show_update):
     # check whether address is right or not
     if not os.path.exists(addr):
@@ -61,10 +60,6 @@ def f_create(drive, addr, fold_id, rel_addr, show_update):
         up_file['title'] = rel_addr  # sets file title to original
         up_file.Upload()
 
-        # # saves share link if required
-        # if not show_update and config_utils.read_config()['Share_Link']:
-        #     share_link(drive, up_file['id'], False)
-
     return True
 
 def share_link(drive, permission, file_id, to_print):
@@ -91,7 +86,8 @@ def share_link(drive, permission, file_id, to_print):
         if to_print:
             print("Share link copied to clipboard!")
             pyperclip.copy(share_file['alternateLink'])
-            pyperclip.paste()
+            mess = pyperclip.paste()
+            print(mess)
 
 
 def is_valid_id(drive, file_id):
@@ -109,38 +105,14 @@ def f_list_local():
 
 # Operations for file list commands
 def f_list(drive, keyword, recursive):
-
-    # get recursively all files in the folder
-    if recursive:
-        file_list = []
-        if keyword == "root":
-            for f in drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList():
-                # if file in list is folder, get it's file list
-                if f['mimeType'] == 'application/vnd.google-apps.folder':
-                    f_all(drive, f['id'], file_list, False, None)
-                else:
-                    file_list.append(f)
-        else:
-            f_all(drive, keyword, file_list, False, None)
-
+    if keyword == "all":
+        file_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
         for f in file_list:
             print('title: %s, id: %s' % (f['title'], f['id']))
-    # lists all files and folder inside given folder
+
+    # lists all files and folders inside folder given as argument in keyword
     else:
-        if keyword == "all":
-            file_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
-            for f in file_list:
-                print('title: %s, id: %s' % (f['title'], f['id']))
-
-        # lists all files and folders inside trash
-        elif keyword == "trash":
-            file_list = drive.ListFile({'q': "'root' in parents and trashed=true"}).GetList()
-            for f in file_list:
-                print('title: %s, id: %s' % (f['title'], f['id']))
-
-        # lists all files and folders inside folder given as argument in keyword
-        else:
-            q_string = "'%s' in parents and trashed=false" % keyword
-            file_list = drive.ListFile({'q': q_string}).GetList()
-            for f in file_list:
-                print('title: %s, id: %s' % (f['title'], f['id']))
+        q_string = "'%s' in parents and trashed=false" % keyword
+        file_list = drive.ListFile({'q': q_string}).GetList()
+        for f in file_list:
+            print('title: %s, id: %s' % (f['title'], f['id']))

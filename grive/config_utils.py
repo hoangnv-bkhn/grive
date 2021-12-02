@@ -6,7 +6,7 @@ import sys
 
 ##huy
 try:
-    # set directory for relativistic import
+    # set directory for relative import
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     import common_utils
 except ImportError:
@@ -28,13 +28,6 @@ def read_config():
     return temp
 
 def down_addr():
-    """
-    reads download directory address from configuration
-    Args:
-        None
-    Returns:
-        addr: path to download directory
-    """
     # Making file address for upload and downloads
     config = read_config()
     addr = os.path.join(os.path.expanduser('~'), config['Down_Dir'])

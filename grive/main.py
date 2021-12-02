@@ -58,7 +58,7 @@ def main():
         elif arguments[arg_index] == "-s" or arguments[arg_index] == "-share" or arguments[arg_index] == "share":
             arg_index += 2
             if is_matching(arg_index, len(arguments)):
-                drive_utils.share_link(drive, arguments[arg_index - 1], arguments[arg_index:len(arguments)])
+                drive_utils.share_link(drive, arguments[arg_index - 1], arguments[arg_index], True)
                 arg_index = len(arguments)
 
         elif arguments[arg_index] == "-ls" or arguments[arg_index] == "-l" or arguments[arg_index] == "ls":
