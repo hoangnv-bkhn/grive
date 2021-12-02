@@ -21,16 +21,16 @@ def main():
         import common_utils
         import auth_utils
         # import edit_config
-        # import file_ops
-        # import cron_handle
+        import drive_utils
+        import common_utils
 
     # using relativistic imports directly if launched as package
     except ImportError:
         from . import common_utils
         from . import auth_utils
         # from . import edit_config
-        # from . import file_ops
-        # from . import cron_handle
+        from . import drive_utils
+        from . import common_utils
 
     arguments = sys.argv[1:]
 
@@ -54,6 +54,8 @@ def main():
         elif arguments[arg_index] == "-u" or arguments[arg_index] == "-upload" or arguments[arg_index] == "upload":
             arg_index += 1
             # To do...
+            if is_matching(arg_index, len(arguments)):
+                drive_utils.f_create(drive, arguments[arg_index], None, str(common_utils.get_f_name(arguments[arg_index])), True)
         elif arguments[arg_index] == "-s" or arguments[arg_index] == "-share" or arguments[arg_index] == "share":
             arg_index += 1
             # To do...

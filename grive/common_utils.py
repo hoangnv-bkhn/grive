@@ -20,3 +20,11 @@ def get_credential_file():
     # when launched as package
     except settings.InvalidConfigError or OSError:
         return os.path.join(home, "credential.json")
+
+# Extracts file name or folder name from full path
+def get_f_name(addr):
+    if os.path.exists(addr):
+        head, tail = ntpath.split(addr)
+        return tail or ntpath.basename(head)  # return tail when file, otherwise other one for folder
+    else:
+        raise TypeError("addr not valid")
