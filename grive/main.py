@@ -55,8 +55,6 @@ def main():
 
         if arguments[arg_index] == "-v" or arguments[arg_index] == "-version" or arguments[arg_index] == "version":
             print("Grive 1.0.0")
-        elif arguments[arg_index] == "-st" or arguments[arg_index] == "-start" or arguments[arg_index] == "start":
-            common_utils.cron_process("start")
         elif arguments[arg_index] == "-u" or arguments[arg_index] == "-upload" or arguments[arg_index] == "upload":
             arg_index += 1
             # To do...
