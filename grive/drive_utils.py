@@ -33,8 +33,7 @@ def f_create(drive, addr, fold_id, rel_addr, show_update):
         else:
             folder = drive.CreateFile({"parents": [{"kind": "drive#fileLink", "id": fold_id}]})
 
-        # folder['title'] = common_utils.get_f_name(addr)  # sets folder title
-        folder['title'] = rel_addr  # sets folder title --Test
+        folder['title'] = common_utils.get_f_name(addr)  # sets folder title
         folder['mimeType'] = 'application/vnd.google-apps.folder'  # assigns it as GDrive folder
         folder.Upload()
 
@@ -56,8 +55,7 @@ def f_create(drive, addr, fold_id, rel_addr, show_update):
             up_file = drive.CreateFile({"parents": [{"kind": "drive#fileLink", "id": fold_id}]})
 
         up_file.SetContentFile(addr)
-        # up_file['title'] = common_utils.get_f_name(addr)  # sets file title to original
-        up_file['title'] = rel_addr  # sets file title to original
+        up_file['title'] = common_utils.get_f_name(addr)  # sets file title to original
         up_file.Upload()
 
     return True
