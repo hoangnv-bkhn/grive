@@ -17,6 +17,7 @@ def get_credential_file():
     # when launched as non-package
     try:
         return os.path.join(home, "credential.json")
+        # return os.path.join(dir_path, "credential.json")
     # when launched as package
     except settings.InvalidConfigError or OSError:
         return os.path.join(home, "credential.json")

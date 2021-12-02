@@ -11,7 +11,7 @@ require_auth = [
     "-download", "download", "-d",
     "-upload", "upload", "-u",
     "-share", "share", "-s",
-    "-ls", "ls", "-l",
+    "-ls", "ls", "-l"
 ]
 
 def main():
@@ -22,7 +22,6 @@ def main():
         import auth_utils
         import config_utils
         import drive_utils
-        # import cron_handle
 
     # using relativistic imports directly if launched as package
     except ImportError:
@@ -30,7 +29,6 @@ def main():
         from . import auth_utils
         from . import config_utils
         from . import drive_utils
-        # from . import cron_handle
 
     arguments = sys.argv[1:]
 
@@ -59,7 +57,8 @@ def main():
         elif arguments[arg_index] == "-s" or arguments[arg_index] == "-share" or arguments[arg_index] == "share":
             arg_index += 2
             if is_matching(arg_index, len(arguments)):
-                drive_utils.share_link()
+                drive_utils.share_link(drive, arguments[arg_index - 1], arguments[arg_index:len(arguments)])
+                arg_index = len(arguments)
 
         elif arguments[arg_index] == "-ls" or arguments[arg_index] == "-l" or arguments[arg_index] == "ls":
             print("List local and remote")

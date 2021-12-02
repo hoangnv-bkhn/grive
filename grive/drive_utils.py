@@ -67,7 +67,7 @@ def f_create(drive, addr, fold_id, rel_addr, show_update):
 
     return True
 
-def share_link(drive, file_id, permission, to_print):
+def share_link(drive, permission, file_id, to_print):
     if is_valid_id(drive, file_id):
         # create shared file
         share_file = drive.CreateFile({'id': file_id})
