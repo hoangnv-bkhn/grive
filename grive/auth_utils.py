@@ -19,7 +19,8 @@ def drive_auth(reset):
     g_auth.DEFAULT_SETTINGS['get_refresh_token'] = True
     g_auth.DEFAULT_SETTINGS['save_credentials'] = True
     g_auth.DEFAULT_SETTINGS['save_credentials_backend'] = 'file'
-    g_auth.DEFAULT_SETTINGS['save_credentials_file'] = common_utils.cred_file()
+    # g_auth.DEFAULT_SETTINGS['save_credentials_file'] = common_utils.cred_file()
+    g_auth.DEFAULT_SETTINGS['save_credentials_file'] = common_utils.get_credential_file()
     g_auth.DEFAULT_SETTINGS['client_id'] = os.environ.get("CLIENT_ID")
     g_auth.DEFAULT_SETTINGS['client_secret'] = os.environ.get("CLIENT_SECRET")
 
