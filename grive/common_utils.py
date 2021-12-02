@@ -37,9 +37,8 @@ def get_credential_file():
 def get_file_name(addr):
     if os.path.exists(addr):
         head, tail = ntpath.split(addr)
-        print(tail)
-        print(ntpath.basename(head))
-        return tail or ntpath.basename(head)  # return tail when file, otherwise other one for folder
+        # return tail when file, otherwise other one for folder
+        return tail or ntpath.basename(head)
     else:
         raise TypeError("Address not valid")
 

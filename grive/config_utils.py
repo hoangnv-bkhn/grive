@@ -19,7 +19,7 @@ def read_config():
         temp = json.load(f_input)
     return temp
 
-def down_addr():
+def get_dir_sync_location():
     # Get address of upload and downloads folders
     config = read_config()
     addr = os.path.join(os.path.expanduser('~'), config['Sync_Dir'])

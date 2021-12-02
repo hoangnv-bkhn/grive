@@ -16,7 +16,7 @@ except ImportError:
     from . import config_utils
 
 def f_create(drive, addr, fold_id, rel_addr, show_update):
-    # check whether address is right or not
+    # Check whether address is right or not
     if not os.path.exists(addr):
         print("Specified file/folder doesn't exist, check the address!")
         return
@@ -33,14 +33,14 @@ def f_create(drive, addr, fold_id, rel_addr, show_update):
         else:
             folder = drive.CreateFile({"parents": [{"kind": "drive#fileLink", "id": fold_id}]})
 
-        folder['title'] = common_utils.get_f_name(addr)  # sets folder title
+        folder['title'] = common_utils.get_file_name(addr)  # sets folder title
         folder['mimeType'] = 'application/vnd.google-apps.folder'  # assigns it as GDrive folder
         folder.Upload()
 
-        # traversing inside files/folders
+        # Traversing inside files/folders
         for item in os.listdir(addr):
             f_create(drive, os.path.join(addr, item), folder['id'], rel_addr + "/" +
-                     str(common_utils.get_f_name(os.path.join(addr, item))), show_update)
+                     str(common_utils.get_file_name(os.path.join(addr, item))), show_update)
 
     # creating file
     else:
@@ -55,7 +55,7 @@ def f_create(drive, addr, fold_id, rel_addr, show_update):
             up_file = drive.CreateFile({"parents": [{"kind": "drive#fileLink", "id": fold_id}]})
 
         up_file.SetContentFile(addr)
-        up_file['title'] = common_utils.get_f_name(addr)  # sets file title to original
+        up_file['title'] = common_utils.get_file_name(addr)  # sets file title to original
         up_file.Upload()
 
     return True
@@ -96,19 +96,18 @@ def is_valid_id(drive, file_id):
         return False
     return True
 
-# List all files and folders in the downloads directory
+# List all files and folders in the sync directory
 def f_list_local():
-    for f in os.listdir(config_utils.down_addr()):
+    for f in os.listdir(config_utils.get_dir_sync_location()):
         print(f)
 
-# Operations for file list commands
 def f_list(drive, keyword, recursive):
     if keyword == "all":
         file_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
         for f in file_list:
             print('title: %s, id: %s' % (f['title'], f['id']))
 
-    # lists all files and folders inside folder given as argument in keyword
+    # Lists all files and folders inside given folder
     else:
         q_string = "'%s' in parents and trashed=false" % keyword
         file_list = drive.ListFile({'q': q_string}).GetList()
