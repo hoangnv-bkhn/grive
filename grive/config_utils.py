@@ -15,13 +15,6 @@ except ImportError:
 config = {}
 
 def read_config():
-    """
-    reads the configuration
-    Args:
-        None
-    Returns:
-        temp: dictionary having configuration data
-    """
     with open(common_utils.config_file, 'r') as f_input:
         temp = json.load(f_input)
 
