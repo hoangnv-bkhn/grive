@@ -31,6 +31,8 @@
 .idea/**/shelf
 
 grive/credential.json
+grive/config_dicts
+grive/config_dicts/config.json
 
 # AWS User-specific
 .idea/**/aws.xml
