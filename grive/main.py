@@ -38,6 +38,7 @@ def main():
 
         if arg_index >= len(arguments):
             break
+        # cho den khi chay het cac tham so
 
         # if argument requires authentication
         if arguments[arg_index] in require_auth:
@@ -61,7 +62,22 @@ def main():
                 arg_index = len(arguments)
 
         elif arguments[arg_index] == "-ls" or arguments[arg_index] == "-l" or arguments[arg_index] == "ls":
-            print("List local and remote")
+            if (arg_index + 1) < len(arguments):
+                if arguments[arg_index + 1] == "remote":
+                    arg_index += 1
+                    drive_utils.f_list(drive, "all", 0)
+                # list of files in downloads directory
+                elif arguments[arg_index + 1] == "local":
+                    arg_index += 1
+                    drive_utils.f_list_local()
+                # no argument matching -ls
+                # else:
+                #     drive_utils.f_list(drive, "all", 0)
+
+            # no argument after -ls
+            else:
+                drive_utils.f_list(drive, "all", 0)
+
         else:
             print(str(arguments[arg_index]) + " is an unrecognised argument. Please report if you know this is an error"
                                           ".\n\n")
