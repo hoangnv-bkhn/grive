@@ -53,7 +53,9 @@ def main():
             print("Grive 1.0.0")
         elif arguments[arg_index] == "-u" or arguments[arg_index] == "-upload" or arguments[arg_index] == "upload":
             arg_index += 1
-            # To do...
+            if is_matching(arg_index, len(arguments)):
+                drive_utils.f_create(drive, arguments[arg_index], None,
+                                     str(common_utils.get_f_name(arguments[arg_index])), True)
         elif arguments[arg_index] == "-s" or arguments[arg_index] == "-share" or arguments[arg_index] == "share":
             arg_index += 2
             if is_matching(arg_index, len(arguments)):
