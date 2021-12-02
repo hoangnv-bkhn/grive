@@ -98,7 +98,7 @@ def is_valid_id(drive, file_id):
         return False
     return True
 
-# list all files and folders in the downloads directory
+# List all files and folders in the downloads directory
 def f_list_local():
     for f in os.listdir(config_utils.down_addr()):
         print(f)

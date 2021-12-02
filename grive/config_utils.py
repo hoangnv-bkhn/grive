@@ -4,7 +4,6 @@ import json
 import os
 import sys
 
-##huy
 try:
     # set directory for relative import
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -14,23 +13,16 @@ except ImportError:
 
 config = {}
 
+# Import config file
 def read_config():
-    """
-    reads the configuration
-    Args:
-        None
-    Returns:
-        temp: dictionary having configuration data
-    """
     with open(common_utils.config_file, 'r') as f_input:
         temp = json.load(f_input)
-
     return temp
 
 def down_addr():
-    # Making file address for upload and downloads
+    # Get address of upload and downloads folders
     config = read_config()
-    addr = os.path.join(os.path.expanduser('~'), config['Down_Dir'])
-    # making directory if it doesn't exist
+    addr = os.path.join(os.path.expanduser('~'), config['Sync_Dir'])
+    # Making directory if it doesn't exist
     common_utils.dir_exists(addr)
     return addr
