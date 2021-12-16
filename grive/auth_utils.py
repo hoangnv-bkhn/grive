@@ -43,5 +43,11 @@ def drive_auth(reset):
 
     return g_auth
 
+def reset_account():
+    if os.path.isfile(common_utils.get_credential_file()):
+        os.remove(common_utils.get_credential_file())
+
+    drive_auth(True)
+
 if __name__ == '__main__':
     pass

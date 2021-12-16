@@ -12,6 +12,7 @@ require_auth = [
     "-upload", "upload", "-u",
     "-share", "share", "-s",
     "-ls", "ls", "-l"
+    "-r", "-remove", "remove"
 ]
 
 def main():
@@ -50,6 +51,15 @@ def main():
 
         if arguments[arg_index] == "-v" or arguments[arg_index] == "-version" or arguments[arg_index] == "version":
             print("Grive 1.0.0")
+        elif arguments[arg_index] == "-h" or arguments[arg_index] == "-help" or arguments[arg_index] == "help":
+            with open(common_utils.help_file) as p_file:
+                if p_file is None:
+                    print("Error reading help file.")
+                    return
+                p_data = p_file.read()
+                print(p_data)
+        elif arguments[arg_index] == "-re" or arguments[arg_index] == "-reset" or arguments[arg_index] == "reset": 
+            auth_utils.reset_account()
         elif arguments[arg_index] == "-u" or arguments[arg_index] == "-upload" or arguments[arg_index] == "upload":
             arg_index += 1
             if is_matching(arg_index, len(arguments)):
@@ -60,7 +70,12 @@ def main():
             if is_matching(arg_index, len(arguments)):
                 drive_utils.share_link(drive, arguments[arg_index - 1], arguments[arg_index], True)
                 arg_index = len(arguments)
-
+        elif arguments[arg_index] == "-r" or arguments[arg_index] == "-remove" or arguments[arg_index] == "remove":
+            arg_index += 2
+            # in case of less arguments than required
+            if is_matching(arg_index, len(arguments)):
+                drive_utils.file_remove(drive, arguments[arg_index - 1], arguments[arg_index:len(arguments)])
+                arg_index = len(arguments)
         elif arguments[arg_index] == "-ls" or arguments[arg_index] == "-l" or arguments[arg_index] == "ls":
             if (arg_index + 1) < len(arguments):
                 if arguments[arg_index + 1] == "remote":

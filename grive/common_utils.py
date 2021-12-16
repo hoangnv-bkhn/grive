@@ -12,9 +12,11 @@ home = os.path.expanduser("~")
 
 try:
     config_file = os.path.join(dir_path, "config_dicts/config.json")
+    help_file = os.path.join(dir_path, "docs/readme.txt")
 # when launched as package
 except settings.InvalidConfigError or OSError:
     config_file = resource_filename(__name__, "config_dicts/config.json")
+    help_file = resource_filename(__name__, "docs/readme.txt")
 
 # returns current username
 def get_username():
