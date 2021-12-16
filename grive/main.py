@@ -50,11 +50,29 @@ def main():
 
         if arguments[arg_index] == "-v" or arguments[arg_index] == "-version" or arguments[arg_index] == "version":
             print("Grive 1.0.0")
+
         elif arguments[arg_index] == "-u" or arguments[arg_index] == "-upload" or arguments[arg_index] == "upload":
             arg_index += 1
             if is_matching(arg_index, len(arguments)):
                 drive_utils.f_create(drive, arguments[arg_index], None,
                                      str(common_utils.get_file_name(arguments[arg_index])), True)
+
+        elif arguments[arg_index] == "-d" or arguments[arg_index] == "-download" or arguments[arg_index] == "download":
+            arg_index += 1
+            if is_matching(arg_index, len(arguments)):
+                # download entire drive folder
+                if arguments[arg_index] == "all":
+                    file_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
+                    # print(file_list)
+                    for argument in file_list:
+                        drive_utils.f_down(drive, argument, config_utils.get_dir_sync_location())
+                # download only specified folder
+                else:
+                    for argument in arguments[arg_index: len(arguments)]:
+                        # print(argument)
+                        drive_utils.f_down(drive, argument, config_utils.get_dir_sync_location())
+                arg_index = len(arguments)  # all arguments used up by download
+
         elif arguments[arg_index] == "-s" or arguments[arg_index] == "-share" or arguments[arg_index] == "share":
             arg_index += 2
             if is_matching(arg_index, len(arguments)):

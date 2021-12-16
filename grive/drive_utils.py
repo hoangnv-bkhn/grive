@@ -15,6 +15,68 @@ except ImportError:
     from . import common_utils
     from . import config_utils
 
+# Get all file names recursively inside a folder
+def f_all(drive, fold_id, file_list, download, sync_folder):
+    q_string = "'%s' in parents and trashed=false" % fold_id
+    for f in drive.ListFile({'q': q_string}).GetList():
+        if f['mimeType'] == 'application/vnd.google-apps.folder':
+            if download:  # if we are to download the files
+                temp_d_folder = os.path.join(sync_folder, f['title'])
+                common_utils.dir_exists(temp_d_folder)
+                f_all(drive, f['id'], None, True, temp_d_folder)
+
+            else:  # we want to just list the files
+                f_all(drive, f['id'], file_list, False, None)
+        else:
+            if download:
+                f_down(drive, f['id'], sync_folder)
+            else:
+                file_list.append(f)
+
+def f_down(drive, file_id, sync_folder):
+    # check if file id not valid
+    if not is_valid_id(drive, file_id):
+        return
+
+    d_file = drive.CreateFile({'id': file_id})
+
+    # open mime_swap dictionary for changing mimeType if required
+    with open(common_utils.mime_dict) as f:
+        mime_swap = json.load(f)
+    
+    # checking if the specified id belongs to a folder
+    if d_file['mimeType'] == mime_swap['folder']:
+        if d_file['title'] in os.listdir(sync_folder):
+            print("%s already present in %s" % (d_file['title'], sync_folder))
+        else:
+            print("Creating folder " + os.path.join(sync_folder, d_file['title']))
+            common_utils.dir_exists(os.path.join(sync_folder, d_file['title']))
+            f_all(drive, d_file['id'], None, True, os.path.join(sync_folder, d_file['title']))
+
+    # for online file types like Gg Docs, Gg Sheet..etc  
+    elif d_file['mimeType'] in mime_swap:
+        # open formats.json for adding custom format
+        with open(common_utils.format_dict) as f:
+            format_add = json.load(f)
+
+        # changing file name to suffix file format
+        f_name = d_file['title'] + format_add[d_file['mimeType']]  
+        if f_name in os.listdir(sync_folder):
+            print("%s already present in %s" % (f_name, sync_folder))
+        else:
+            print("Downloading " + os.path.join(sync_folder, f_name))
+            d_file.GetContentFile(os.path.join(sync_folder, f_name),
+                                  mimetype=mime_swap[d_file['mimeType']])
+    
+    else:
+        if d_file['title'] in os.listdir(sync_folder):
+            print("%s already present in %s" % (d_file['title'], sync_folder))
+
+        else:
+            print("Downloading " + os.path.join(sync_folder, d_file['title']))
+            d_file.GetContentFile(os.path.join(sync_folder, d_file['title']))
+
+
 def f_create(drive, addr, fold_id, rel_addr, show_update):
     # Check whether address is right or not
     if not os.path.exists(addr):
