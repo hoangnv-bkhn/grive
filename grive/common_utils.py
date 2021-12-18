@@ -16,6 +16,7 @@ try:
     mime_dict = os.path.join(dir_path, "config_dicts/mime_dict.json")
     format_dict = os.path.join(dir_path, "config_dicts/formats.json")
 
+    help_file = os.path.join(dir_path, "docs/readme.txt")
 # when launched as package
 except settings.InvalidConfigError or OSError:
     config_file = resource_filename(__name__, "config_dicts/config.json")
@@ -23,6 +24,7 @@ except settings.InvalidConfigError or OSError:
     mime_dict = resource_filename(__name__, "config_dicts/mime_dict.json")
     format_dict = resource_filename(__name__, "config_dicts/formats.json")
 
+    help_file = resource_filename(__name__, "docs/readme.txt")
 
 # returns current username
 def get_username():

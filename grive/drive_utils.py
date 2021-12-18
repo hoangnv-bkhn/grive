@@ -149,14 +149,56 @@ def share_link(drive, permission, file_id, to_print):
             mess = pyperclip.paste()
             print(mess)
 
+def file_remove(drive, mode, addrs):
+
+    if mode == "local":
+        sync_dir = config_utils.get_dir_sync_location()
+        # Appending file/folder name to download directory
+        for addr in addrs:
+            f_path = os.path.join(sync_dir, addr)
+            if not os.path.exists(f_path):
+                print("%s doesn't exist in %s" % (addr, sync_dir))
+            else:
+                # use recursive removal if directory
+                if os.path.isdir(addr):
+                    shutil.rmtree(f_path)
+                else:
+                    os.remove(f_path)
+                print("%s removed from %s" % (addr, sync_dir))
+
+    elif mode == "remote":
+        for addr in addrs:
+            # check if file_id valid
+            if is_valid_id(drive, addr):
+                # file to be removed
+                r_file = drive.CreateFile({'id': addr})
+                f_name = r_file['title']
+                # delete permanently if in trash
+                if is_trash(drive, r_file['id']):
+                    r_file.Delete()
+                    print("%s deleted permanently" % f_name)
+                # move to trash
+                else:
+                    r_file.Trash()
+                    print("%s moved to GDrive trash. List files in trash by -lt parameter" % f_name)
+    else:
+        print("%s is not a valid mode" % mode)
+        return
 
 def is_valid_id(drive, file_id):
     try:
-        r_file = drive.CreateFile({'id': file_id})
+        drive.CreateFile({'id': file_id})
     except files.ApiRequestError:
         print("%s is an invalid file_id!" % file_id)
         return False
     return True
+
+def is_trash(drive, file_id):
+    for f in drive.ListFile({'q': "'root' in parents and trashed=true"}).GetList():
+        if file_id == f['id']:
+            return True
+    return False
+
 
 # List all files and folders in the sync directory
 def f_list_local():
