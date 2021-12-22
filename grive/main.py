@@ -13,6 +13,10 @@ require_auth = [
     "-share", "share", "-s",
     "-ls", "ls", "-l"
     "-r", "-remove", "remove"
+    "-ls_files", "ls_files", "-laf",
+    "-ls", "ls", "-l",
+    "-ls_trash", "ls_trash", "-lt",
+    "-ls_folder", "ls_folder", "-lf"
 ]
 
 def main():
@@ -94,6 +98,15 @@ def main():
             if is_matching(arg_index, len(arguments)):
                 drive_utils.file_remove(drive, arguments[arg_index - 1], arguments[arg_index:len(arguments)])
                 arg_index = len(arguments)
+            if is_matching(arg_index, len(arguments)):
+                drive_utils.f_create(drive, arguments[arg_index], None,
+                                     str(common_utils.get_file_name(arguments[arg_index])), True)
+        elif arguments[arg_index] == "-s" or arguments[arg_index] == "-share" or arguments[arg_index] == "share":
+            arg_index += 2
+            if is_matching(arg_index, len(arguments)):
+                drive_utils.share_link(drive, arguments[arg_index - 1], arguments[arg_index], True)
+                arg_index = len(arguments)
+
         elif arguments[arg_index] == "-ls" or arguments[arg_index] == "-l" or arguments[arg_index] == "ls":
             if (arg_index + 1) < len(arguments):
                 if arguments[arg_index + 1] == "remote":
@@ -110,6 +123,21 @@ def main():
             # no argument after -ls
             else:
                 drive_utils.f_list(drive, "all", 0)
+
+        elif arguments[arg_index] == "-ls_files" or arguments[arg_index] == "-laf" or \
+                arguments[arg_index] == "ls_files":
+            arg_index += 1
+            if is_matching(arg_index, len(arguments)):
+                drive_utils.f_list(drive, arguments[arg_index], 1)
+
+        elif arguments[arg_index] == "-ls_trash" or arguments[arg_index] == "-lt" or arguments[arg_index] == "ls_trash":
+            drive_utils.f_list(drive, "trash", 0)
+
+        elif arguments[arg_index] == "-ls_folder" or arguments[arg_index] == "-lf" or \
+                arguments[arg_index] == "ls_folder":
+            arg_index += 1  # increase arg_index to read the query argument
+            if is_matching(arg_index, len(arguments)):
+                drive_utils.f_list(drive, arguments[arg_index], 0)
 
         else:
             print(str(arguments[arg_index]) + " is an unrecognised argument. Please report if you know this is an error"
