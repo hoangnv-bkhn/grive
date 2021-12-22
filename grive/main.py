@@ -11,7 +11,10 @@ require_auth = [
     "-download", "download", "-d",
     "-upload", "upload", "-u",
     "-share", "share", "-s",
+    "-ls_files", "ls_files", "-laf",
     "-ls", "ls", "-l",
+    "-ls_trash", "ls_trash", "-lt",
+    "-ls_folder", "ls_folder", "-lf"
 ]
 
 def main():
@@ -20,20 +23,15 @@ def main():
         sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
         import common_utils
         import auth_utils
-        # import edit_config
-        # import file_ops
-        # import cron_handle
+        import config_utils
         import drive_utils
 
     # using relativistic imports directly if launched as package
     except ImportError:
         from . import common_utils
         from . import auth_utils
-        # from . import edit_config
-        # from . import file_ops
-        # from . import cron_handle
-        import drive_utils
-
+        from . import config_utils
+        from . import drive_utils
 
     arguments = sys.argv[1:]
 
@@ -43,7 +41,6 @@ def main():
 
         if arg_index >= len(arguments):
             break
-        # cho den khi chay het cac tham so
 
         # if argument requires authentication
         if arguments[arg_index] in require_auth:
@@ -57,10 +54,15 @@ def main():
             print("Grive 1.0.0")
         elif arguments[arg_index] == "-u" or arguments[arg_index] == "-upload" or arguments[arg_index] == "upload":
             arg_index += 1
-            # To do...
+            if is_matching(arg_index, len(arguments)):
+                drive_utils.f_create(drive, arguments[arg_index], None,
+                                     str(common_utils.get_file_name(arguments[arg_index])), True)
         elif arguments[arg_index] == "-s" or arguments[arg_index] == "-share" or arguments[arg_index] == "share":
-            arg_index += 1
-            # To do...
+            arg_index += 2
+            if is_matching(arg_index, len(arguments)):
+                drive_utils.share_link(drive, arguments[arg_index - 1], arguments[arg_index], True)
+                arg_index = len(arguments)
+
         elif arguments[arg_index] == "-ls" or arguments[arg_index] == "-l" or arguments[arg_index] == "ls":
             if (arg_index + 1) < len(arguments):
                 if arguments[arg_index + 1] == "remote":
@@ -77,6 +79,21 @@ def main():
             # no argument after -ls
             else:
                 drive_utils.f_list(drive, "all", 0)
+
+        elif arguments[arg_index] == "-ls_files" or arguments[arg_index] == "-laf" or \
+                arguments[arg_index] == "ls_files":
+            arg_index += 1
+            if is_matching(arg_index, len(arguments)):
+                drive_utils.f_list(drive, arguments[arg_index], 1)
+
+        elif arguments[arg_index] == "-ls_trash" or arguments[arg_index] == "-lt" or arguments[arg_index] == "ls_trash":
+            drive_utils.f_list(drive, "trash", 0)
+
+        elif arguments[arg_index] == "-ls_folder" or arguments[arg_index] == "-lf" or \
+                arguments[arg_index] == "ls_folder":
+            arg_index += 1  # increase arg_index to read the query argument
+            if is_matching(arg_index, len(arguments)):
+                drive_utils.f_list(drive, arguments[arg_index], 0)    
 
         else:
             print(str(arguments[arg_index]) + " is an unrecognised argument. Please report if you know this is an error"
