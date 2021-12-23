@@ -4,6 +4,7 @@ import os
 import sys
 import shutil
 import pyperclip
+import hashlib
 from pydrive import files
 
 try:
@@ -121,6 +122,39 @@ def f_create(drive, addr, fold_id, rel_addr, show_update):
         up_file.Upload()
 
     return True
+
+def f_sync(drive):
+
+    file_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
+
+    dir_folder = config_utils.get_dir_sync_location()
+
+    for f in os.listdir(dir_folder):
+
+        check = False
+
+        dir_file = dir_folder + "/" + f
+        rel_addr = common_utils.get_file_name(dir_file)
+
+        for f_sub in file_list:
+            if((f == f_sub['title']) and (f_sub.get('md5Checksum') is not None)):
+                check = True
+                md5checksum = hashlib.md5(open(dir_file, 'rb').read()).hexdigest()
+                if(md5checksum != f_sub.get('md5Checksum')):
+                    up_file = drive.CreateFile({'id': f_sub['id'], 'title': f_sub['title']})
+                    up_file.SetContentFile(dir_file)
+                    print("modified file " + rel_addr)
+                    up_file.Upload()
+                    break
+
+        if (check is False):
+            up_file = drive.CreateFile()
+            up_file.SetContentFile(dir_file)
+            up_file['title'] = rel_addr
+            print("uploading file " + rel_addr)
+            up_file.Upload()
+
+    return
 
 def share_link(drive, permission, file_id, to_print):
     if is_valid_id(drive, file_id):

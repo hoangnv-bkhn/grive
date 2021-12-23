@@ -12,7 +12,8 @@ require_auth = [
     "-upload", "upload", "-u",
     "-share", "share", "-s",
     "-ls", "ls", "-l"
-    "-r", "-remove", "remove"
+    "-r", "-remove", "remove",
+    "-sync", "sync", "-synchronize"
 ]
 
 def main():
@@ -66,6 +67,8 @@ def main():
             if is_matching(arg_index, len(arguments)):
                 drive_utils.f_create(drive, arguments[arg_index], None,
                                      str(common_utils.get_file_name(arguments[arg_index])), True)
+        elif arguments[arg_index] == "-sync" or arguments[arg_index] == "-synchronize" or arguments[arg_index] == "sync":
+            drive_utils.f_sync(drive)
 
         elif arguments[arg_index] == "-d" or arguments[arg_index] == "-download" or arguments[arg_index] == "download":
             arg_index += 1
