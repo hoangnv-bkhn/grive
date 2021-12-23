@@ -70,9 +70,17 @@ Use "-d all" argument to download entire your entire Google Drive folder.
 
 Upload file/folder corresponding to the address given to Google Drive, for one time.
 
+* -sync
+
+Sync specified folder to Google drive
+
 * -share [file_id]
 
 Outputs the shareable link of the file.
+
+* -restore [file_id]
+
+Restore files from trash.
 
 * -remove [local/remote] [file_name/folder_name/file_id/folder_id]
 

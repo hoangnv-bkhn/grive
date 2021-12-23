@@ -99,33 +99,31 @@ def by_cron(drive, file_id=None):
     for f in os.listdir(folder):
         if f not in uploading:
             uploading[f] = False
-            print("check1")
 
         # check if the file is not being uploaded
         if not uploading[f]:
             to_up.append(f)
             uploading[f] = True
-            print("check2")
 
     # saving back the status of files
     try:
-        print(path)
         with open(path, 'w') as f_output:
             print(uploading)
             json.dump(uploading, f_output)
-            print("check3")
     except IOError:
         print("Error: insufficient permission to write to %s" % folder)
         return
 
     print(to_up)
+    if len(to_up) > 0 :
+        drive_utils.f_sync(drive)
     # processing upload queue
-    for item in to_up:
-        # ignoring status.json
-        if item == "status.json":
-            continue
+    # for item in to_up:
+    #     # ignoring status.json
+    #     if item == "status.json":
+    #         continue
 
-        drive_utils.f_up(drive, os.path.join(folder, item), file_id)
+        # drive_utils.f_up(drive, os.path.join(folder, item), file_id)
 
         # remove uploaded item from status.json
         # with open(path, 'r') as f_input:

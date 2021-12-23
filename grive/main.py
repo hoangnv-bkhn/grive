@@ -46,7 +46,6 @@ def main():
 
         if arg_index >= len(arguments):
             break
-        # cho den khi chay het cac tham so
 
         # if argument requires authentication
         if arguments[arg_index] in require_auth:
@@ -84,6 +83,7 @@ def main():
             if is_matching(arg_index, len(arguments)):
                 drive_utils.f_create(drive, arguments[arg_index], None,
                                      str(common_utils.get_file_name(arguments[arg_index])), True)
+
         elif arguments[arg_index] == "-sync" or arguments[arg_index] == "-synchronize" or arguments[arg_index] == "sync":
             drive_utils.f_sync(drive)
 
@@ -113,11 +113,6 @@ def main():
             # in case of less arguments than required
             if is_matching(arg_index, len(arguments)):
                 drive_utils.file_remove(drive, arguments[arg_index - 1], arguments[arg_index:len(arguments)])
-                arg_index = len(arguments)
-        elif arguments[arg_index] == "-s" or arguments[arg_index] == "-share" or arguments[arg_index] == "share":
-            arg_index += 2
-            if is_matching(arg_index, len(arguments)):
-                drive_utils.share_link(drive, arguments[arg_index - 1], arguments[arg_index], True)
                 arg_index = len(arguments)
 
         elif arguments[arg_index] == "-o" or arguments[arg_index] == "-open" or arguments[arg_index] == "open":

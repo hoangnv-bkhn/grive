@@ -167,7 +167,7 @@ def f_sync(drive):
                 if(md5checksum != f_sub.get('md5Checksum')):
                     up_file = drive.CreateFile({'id': f_sub['id'], 'title': f_sub['title']})
                     up_file.SetContentFile(dir_file)
-                    print("modified file " + rel_addr)
+                    print("Modified file " + rel_addr)
                     up_file.Upload()
                     break
 
