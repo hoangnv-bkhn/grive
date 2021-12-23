@@ -15,7 +15,8 @@ require_auth = [
     "-ls_files", "ls_files", "-laf",
     "-ls", "ls", "-l",
     "-ls_trash", "ls_trash", "-lt",
-    "-ls_folder", "ls_folder", "-lf"
+    "-ls_folder", "ls_folder", "-lf",
+    "-restore", "restore", "-rs",
 ]
 
 def main():
@@ -97,14 +98,14 @@ def main():
             if is_matching(arg_index, len(arguments)):
                 drive_utils.file_remove(drive, arguments[arg_index - 1], arguments[arg_index:len(arguments)])
                 arg_index = len(arguments)
-            if is_matching(arg_index, len(arguments)):
-                drive_utils.f_create(drive, arguments[arg_index], None,
-                                     str(common_utils.get_file_name(arguments[arg_index])), True)
         elif arguments[arg_index] == "-s" or arguments[arg_index] == "-share" or arguments[arg_index] == "share":
             arg_index += 2
             if is_matching(arg_index, len(arguments)):
                 drive_utils.share_link(drive, arguments[arg_index - 1], arguments[arg_index], True)
                 arg_index = len(arguments)
+
+        elif arguments[arg_index] == "-o" or arguments[arg_index] == "-open" or arguments[arg_index] == "open":
+            drive_utils.f_open(arguments[arg_index])
 
         elif arguments[arg_index] == "-ls" or arguments[arg_index] == "-l" or arguments[arg_index] == "ls":
             if (arg_index + 1) < len(arguments):
@@ -138,6 +139,13 @@ def main():
             arg_index += 1  # increase arg_index to read the query argument
             if is_matching(arg_index, len(arguments)):
                 drive_utils.f_list(drive, arguments[arg_index], 0)
+
+        elif arguments[arg_index] == "-rs" or arguments[arg_index] == "-restore" or arguments[arg_index] == "restore":
+            arg_index += 1
+            # in case of less arguments than required
+            if is_matching(arg_index, len(arguments)):
+                drive_utils.file_restore(drive, arguments[arg_index:len(arguments)])
+                arg_index = len(arguments)
 
         else:
             print(str(arguments[arg_index]) + " is an unrecognised argument. Please report if you know this is an error"
