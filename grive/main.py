@@ -11,8 +11,7 @@ require_auth = [
     "-download", "download", "-d",
     "-upload", "upload", "-u",
     "-share", "share", "-s",
-    "-ls", "ls", "-l"
-    "-r", "-remove", "remove"
+    "-r", "-remove", "remove",
     "-ls_files", "ls_files", "-laf",
     "-ls", "ls", "-l",
     "-ls_trash", "ls_trash", "-lt",
@@ -135,6 +134,7 @@ def main():
 
         elif arguments[arg_index] == "-ls_folder" or arguments[arg_index] == "-lf" or \
                 arguments[arg_index] == "ls_folder":
+            print(drive)
             arg_index += 1  # increase arg_index to read the query argument
             if is_matching(arg_index, len(arguments)):
                 drive_utils.f_list(drive, arguments[arg_index], 0)

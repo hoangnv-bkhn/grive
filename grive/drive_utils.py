@@ -205,15 +205,55 @@ def f_list_local():
     for f in os.listdir(config_utils.get_dir_sync_location()):
         print(f)
 
+# def f_list(drive, keyword, recursive):
+#     if keyword == "all":
+#         file_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
+#         for f in file_list:
+#             print('title: %s, id: %s' % (f['title'], f['id']))
+
+#     # Lists all files and folders inside given folder
+#     else:
+#         q_string = "'%s' in parents and trashed=false" % keyword
+#         file_list = drive.ListFile({'q': q_string}).GetList()
+#         for f in file_list:
+#             print('title: %s, id: %s' % (f['title'], f['id']))
+
+# Operations for file list commands
 def f_list(drive, keyword, recursive):
-    if keyword == "all":
-        file_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
+
+    # get recursively all files in the folder
+    if recursive:
+        file_list = []
+        if keyword == "root":
+            for f in drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList():
+                # if file in list is folder, get it's file list
+                if f['mimeType'] == 'application/vnd.google-apps.folder':
+                    f_all(drive, f['id'], file_list, False, None)
+                else:
+                    file_list.append(f)
+        else:
+            f_all(drive, keyword, file_list, False, None)
+
         for f in file_list:
             print('title: %s, id: %s' % (f['title'], f['id']))
 
-    # Lists all files and folders inside given folder
+    # lists all files and folder inside given folder
     else:
-        q_string = "'%s' in parents and trashed=false" % keyword
-        file_list = drive.ListFile({'q': q_string}).GetList()
-        for f in file_list:
-            print('title: %s, id: %s' % (f['title'], f['id']))
+        if keyword == "all":
+            file_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
+            for f in file_list:
+                print('title: %s, id: %s' % (f['title'], f['id']))
+
+        # lists all files and folders inside trash
+        elif keyword == "trash":
+            file_list = drive.ListFile({'q': "'root' in parents and trashed=true"}).GetList()
+            for f in file_list:
+                print('title: %s, id: %s' % (f['title'], f['id']))
+
+        # lists all files and folders inside folder given as argument in keyword
+        else:
+            q_string = "'%s' in parents and trashed=false" % keyword
+            file_list = drive.ListFile({'q': q_string}).GetList()
+            for f in file_list:
+                print('title: %s, id: %s' % (f['title'], f['id']))
+
