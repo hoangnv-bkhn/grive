@@ -174,7 +174,7 @@ def share_link(drive, permission, file_id, to_print):
             print(mess)
 
 def file_remove(drive, mode, addrs):
-
+    print(addrs)
     if mode == "local":
         sync_dir = config_utils.get_dir_sync_location()
         # Appending file/folder name to download directory
@@ -209,6 +209,23 @@ def file_remove(drive, mode, addrs):
         print("%s is not a valid mode" % mode)
         return
 
+def file_restore(drive, addrs):
+    print(addrs)
+    for addr in addrs:
+            # check if file_id valid
+            if is_valid_id(drive, addr):
+                # file to be removed
+                r_file = drive.CreateFile({'id': addr})
+                f_name = r_file['title']
+                # if in trash then restore
+                if is_trash(drive, r_file['id']):
+                    r_file.UnTrash()
+                    print("%s is restored" % f_name)
+                # ele done nothing
+                else:
+                    print("%s is not trash" % f_name) 
+                    return;
+
 def is_valid_id(drive, file_id):
     try:
         drive.CreateFile({'id': file_id})
@@ -228,19 +245,6 @@ def is_trash(drive, file_id):
 def f_list_local():
     for f in os.listdir(config_utils.get_dir_sync_location()):
         print(f)
-
-# def f_list(drive, keyword, recursive):
-#     if keyword == "all":
-#         file_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
-#         for f in file_list:
-#             print('title: %s, id: %s' % (f['title'], f['id']))
-
-#     # Lists all files and folders inside given folder
-#     else:
-#         q_string = "'%s' in parents and trashed=false" % keyword
-#         file_list = drive.ListFile({'q': q_string}).GetList()
-#         for f in file_list:
-#             print('title: %s, id: %s' % (f['title'], f['id']))
 
 # Operations for file list commands
 def f_list(drive, keyword, recursive):
@@ -281,3 +285,5 @@ def f_list(drive, keyword, recursive):
             for f in file_list:
                 print('title: %s, id: %s' % (f['title'], f['id']))
 
+def f_open(folder):
+    os.system('xdg-open "%s"' % config_utils.down_addr())
