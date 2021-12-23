@@ -26,6 +26,7 @@ def main():
         import auth_utils
         import config_utils
         import drive_utils
+        import jobs
 
     # using relativistic imports directly if launched as package
     except ImportError:
@@ -33,6 +34,7 @@ def main():
         from . import auth_utils
         from . import config_utils
         from . import drive_utils
+        from . import jobs
 
     arguments = sys.argv[1:]
 
@@ -54,6 +56,7 @@ def main():
 
         if arguments[arg_index] == "-v" or arguments[arg_index] == "-version" or arguments[arg_index] == "version":
             print("Grive 1.0.0")
+
         elif arguments[arg_index] == "-h" or arguments[arg_index] == "-help" or arguments[arg_index] == "help":
             with open(common_utils.help_file) as p_file:
                 if p_file is None:
@@ -61,8 +64,18 @@ def main():
                     return
                 p_data = p_file.read()
                 print(p_data)
+
         elif arguments[arg_index] == "-re" or arguments[arg_index] == "-reset" or arguments[arg_index] == "reset":
             auth_utils.reset_account()
+
+        elif arguments[arg_index] == "-st" or arguments[arg_index] == "-start" or arguments[arg_index] == "start":
+            jobs.cron_process("start")
+
+        elif arguments[arg_index] == "-x" or arguments[arg_index] == "-stop" or arguments[arg_index] == "stop":
+            jobs.cron_process("stop")
+
+        elif arguments[arg_index] == "-y" or arguments[arg_index] == "-status" or arguments[arg_index] == "status":
+            jobs.cron_process("status")
 
         elif arguments[arg_index] == "-u" or arguments[arg_index] == "-upload" or arguments[arg_index] == "upload":
             arg_index += 1
@@ -139,10 +152,18 @@ def main():
             if is_matching(arg_index, len(arguments)):
                 drive_utils.f_list(drive, arguments[arg_index], 0)
 
+        elif arguments[arg_index] == "-by_cron":
+            # modified to get the id and destiny directory
+            if (arg_index + 1) < len(arguments):
+                arg_index += 1
+                # add the Id to same dicetory on gDrive
+                jobs.by_cron(drive, arguments[arg_index])
+            else:
+                jobs.by_cron(drive)
+
         else:
             print(str(arguments[arg_index]) + " is an unrecognised argument. Please report if you know this is an error"
                                           ".\n\n")
-            print("ARGS")
 
         arg_index += 1
 

@@ -122,6 +122,30 @@ def f_create(drive, addr, fold_id, rel_addr, show_update):
 
     return True
 
+def f_up(drive, addr, fold_id):
+    # checks if the specified file/folder exists
+    if not os.path.exists(addr):
+        print("Specified file/folder doesn't exist, please remove from upload list using -config")
+        return
+
+    # pass the address to f_create and on success delete/move file/folder
+    if f_create(drive, addr, fold_id, str(common_utils.get_file_name(addr)), True):
+        # remove file if Remove_Post_Upload is true, otherwise move to GDrive downloads
+        # remove_post_upload = config_utils.read_config()['Remove_Post_Upload']
+        remove_post_upload = False
+        if remove_post_upload:
+            # use recursive removal if directory
+            if os.path.isdir(addr):
+                shutil.rmtree(addr)
+            # normal os removal for file
+            else:
+                os.remove(addr)
+        # else:
+        #     shutil.move(addr, config_utils.get_dir_sync_location())
+    else:
+        print("Upload unsuccessful, please try again!")
+
+
 def share_link(drive, permission, file_id, to_print):
     if is_valid_id(drive, file_id):
         # create shared file

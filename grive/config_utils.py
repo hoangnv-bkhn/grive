@@ -25,4 +25,5 @@ def get_dir_sync_location():
     addr = os.path.join(os.path.expanduser('~'), config['Sync_Dir'])
     # Making directory if it doesn't exist
     common_utils.dir_exists(addr)
+
     return addr
