@@ -56,12 +56,17 @@ def main():
             drive = None
 
         if arguments[arg_index] == "-v" or arguments[arg_index] == "-version" or arguments[arg_index] == "version":
-            print("Grive 1.0.0")
+            with open(common_utils.version_info_file) as p_file:
+                if p_file is None:
+                    print("Error reading version file. Please report at tokyo.example@gmail.com")
+                    return
+                p_data = p_file.read()
+                print(p_data)
 
         elif arguments[arg_index] == "-h" or arguments[arg_index] == "-help" or arguments[arg_index] == "help":
             with open(common_utils.help_file) as p_file:
                 if p_file is None:
-                    print("Error reading help file.")
+                    print("Error reading user manual file.")
                     return
                 p_data = p_file.read()
                 print(p_data)
@@ -108,6 +113,7 @@ def main():
             if is_matching(arg_index, len(arguments)):
                 drive_utils.share_link(drive, arguments[arg_index - 1], arguments[arg_index], True)
                 arg_index = len(arguments)
+
         elif arguments[arg_index] == "-r" or arguments[arg_index] == "-remove" or arguments[arg_index] == "remove":
             arg_index += 2
             # in case of less arguments than required
