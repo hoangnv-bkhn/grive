@@ -1,7 +1,9 @@
 import os
 import sys
 import pwd
+import hashlib
 import json
+from datetime import datetime
 from crontab import CronTab
 
 try:
@@ -40,7 +42,7 @@ def cron_process(arg):
             else:
                 gdrive_job = cron.new(command='grive -by_cron', comment='start Grive')
 
-            gdrive_job.minute.every(1)  # setting to run every five minutes
+            gdrive_job.minute.every(config_utils.get_sync_cycle())  # setting to run every n minutes
             cron.write()
             print("Grive started")
 
@@ -78,7 +80,64 @@ def is_running(remove):  # remove tells if the function was called from stop
 
 # code to be launched by cron periodically
 def by_cron(drive, file_id=None):
-    drive_utils.f_sync(drive)
+
+    sync_dir = config_utils.get_dir_sync_location()
+    # stores if the file is being uploaded
+    uploading = {}
+
+    # remote_files = drive_utils.f_list(drive, "root", 1)
+    # print(remote_files[0]['modifiedDate'])
+
+    # datetime.timestamp(datetime.strptime(file['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ'))
+
+    subfolders, local_files = common_utils.run_fast_scandir(config_utils.get_dir_sync_location())
+
+    if os.path.exists(common_utils.config_folder):
+        path = os.path.join(common_utils.config_folder, "metadata_file.json")
+        with open(path, 'w') as metadata_file:
+            dicts = []
+            # for file in remote_files:
+            #     dict = {
+            #         'storageLocation': 'remote',
+            #         'id': file['id'],
+            #         'alternateLink': file['alternateLink'],
+            #         'title': file['title'],
+            #         'modifiedDate': datetime.timestamp(datetime.strptime(file['modifiedDate'],
+            #         '%Y-%m-%dT%H:%M:%S.%fZ')),
+            #         'parents': file['parents'],
+            #         'md5Checksum': file.get('md5Checksum')
+            #     }
+            #     dicts.append(dict)
+
+            # datetime.utcfromtimestamp(stats.st_mtime)
+            # for file in local_files:
+            #     # print(file)
+            #     stats = os.stat(file)
+            #     dict = {
+            #         'storageLocation': 'local',
+            #         'title': common_utils.get_file_name(file),
+            #         'canonicalPath': file,
+            #         'modifiedDate': stats.st_mtime,
+            #         'md5Checksum': hashlib.md5(open(file, 'rb').read()).hexdigest(),
+            #         'excludeUpload': 'false'
+            #     }
+            #     dicts.append(dict)
+
+            json.dump(dicts, metadata_file, default=str)
+
+
+
+    # for f in os.listdir(sync_dir):
+    #     print(f)
+
+    # load if status.json exists in the folder
+    # path = os.path.join(folder, "status.json")
+    # if os.path.exists(path):
+    #     with open(path, 'r') as f_input:
+    #         uploading = json.load(f_input)
+
+    # drive_utils.f_sync(drive)
+
     # traversing through all upload folders
 
     # folder = config_utils.get_dir_sync_location()

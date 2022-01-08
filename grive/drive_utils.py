@@ -5,6 +5,7 @@ import sys
 import shutil
 import pyperclip
 import hashlib
+from datetime import datetime
 from pydrive import files
 
 try:
@@ -16,27 +17,41 @@ except ImportError:
     from . import common_utils
     from . import config_utils
 
-# Get all file names recursively inside a folder
-def f_all(drive, fold_id, file_list, download, sync_folder):
+
+def f_all(drive, fold_id, file_list, download, sync_folder, option):
+    """Recursively download or just list files in folder
+
+        :param drive: Google Drive instance
+        :param fold_id: id of folder to search
+        :param file_list: initial list to store list of file when search
+        :param download: True if downloads, False if just recursively list file
+        :param sync_folder: folder to store when download
+        :param option: option download (overwrite or not)
+
+        :returns: List of file store in file_list param
+    """
+
     q_string = "'%s' in parents and trashed=false" % fold_id
     for f in drive.ListFile({'q': q_string}).GetList():
         if f['mimeType'] == 'application/vnd.google-apps.folder':
             if download:  # if we are to download the files
                 temp_d_folder = os.path.join(sync_folder, f['title'])
                 common_utils.dir_exists(temp_d_folder)
-                f_all(drive, f['id'], None, True, temp_d_folder)
+                f_all(drive, f['id'], None, True, temp_d_folder, option)
 
             else:  # we want to just list the files
-                f_all(drive, f['id'], file_list, False, None)
+                f_all(drive, f['id'], file_list, False, None, None)
         else:
             if download:
-                f_down(drive, f['id'], sync_folder)
+                f_down(drive, option, f['id'], sync_folder)
             else:
                 file_list.append(f)
 
-def f_down(drive, file_id, sync_folder):
+
+def f_down(drive, option, file_id, sync_folder):
     # check if file id not valid
     if not is_valid_id(drive, file_id):
+        print("%s is an invalid id of file or folder !" % file_id)
         return
 
     d_file = drive.CreateFile({'id': file_id})
@@ -44,34 +59,62 @@ def f_down(drive, file_id, sync_folder):
     # open mime_swap dictionary for changing mimeType if required
     with open(common_utils.mime_dict) as f:
         mime_swap = json.load(f)
-    
+
+    overwrite = False
+    if common_utils.check_option(option, 'o', 3):
+        overwrite = True
+
     # checking if the specified id belongs to a folder
     if d_file['mimeType'] == mime_swap['folder']:
-        if d_file['title'] in os.listdir(sync_folder):
-            print("%s already present in %s" % (d_file['title'], sync_folder))
+        folder_name = d_file['title']
+        folder_path = os.path.join(sync_folder, folder_name)
+        if folder_name in os.listdir(sync_folder):
+            if overwrite:
+                if os.path.isdir(folder_path):
+                    shutil.rmtree(folder_path)
+                    print("Recreating folder %s in %s" % (folder_name, sync_folder))
+                    common_utils.dir_exists(folder_path)
+                    f_all(drive, d_file['id'], None, True, folder_path, option)
+            else:
+                print("Folder '%s' already present in %s" % (d_file['title'], sync_folder))
         else:
-            print("Creating folder " + os.path.join(sync_folder, d_file['title']))
+            print("Creating folder %s in %s" % (folder_name, sync_folder))
             common_utils.dir_exists(os.path.join(sync_folder, d_file['title']))
-            f_all(drive, d_file['id'], None, True, os.path.join(sync_folder, d_file['title']))
+            f_all(drive, d_file['id'], None, True, folder_path, option)
 
-    # for online file types like Gg Docs, Gg Sheet..etc  
+    # for online file types like Gg Docs, Gg Sheet..etc
     elif d_file['mimeType'] in mime_swap:
         # open formats.json for adding custom format
-        with open(common_utils.format_dict) as f:
-            format_add = json.load(f)
+        # with open(common_utils.format_dict) as f:
+        #     format_add = json.load(f)
 
         # changing file name to suffix file format
-        f_name = d_file['title'] + format_add[d_file['mimeType']]  
+        # f_name = d_file['title'] + format_add[d_file['mimeType']]
+        f_name = d_file['title']
         if f_name in os.listdir(sync_folder):
-            print("%s already present in %s" % (f_name, sync_folder))
+            if overwrite:
+                if os.path.isfile(os.path.join(sync_folder, f_name)):
+                    os.remove(os.path.join(sync_folder, f_name))
+                    print("Downloading " + os.path.join(sync_folder, f_name))
+                    d_file.GetContentFile(os.path.join(sync_folder, f_name),
+                                          mimetype=mime_swap[d_file['mimeType']])
+            else:
+                print("%s already present in %s" % (f_name, sync_folder))
         else:
             print("Downloading " + os.path.join(sync_folder, f_name))
             d_file.GetContentFile(os.path.join(sync_folder, f_name),
                                   mimetype=mime_swap[d_file['mimeType']])
-    
+
     else:
-        if d_file['title'] in os.listdir(sync_folder):
-            print("%s already present in %s" % (d_file['title'], sync_folder))
+        f_name = d_file['title']
+        if f_name in os.listdir(sync_folder):
+            if overwrite:
+                if os.path.isfile(os.path.join(sync_folder, f_name)):
+                    os.remove(os.path.join(sync_folder, f_name))
+                    print("Downloading " + os.path.join(sync_folder, d_file['title']))
+                    d_file.GetContentFile(os.path.join(sync_folder, d_file['title']))
+            else:
+                print("%s already present in %s" % (d_file['title'], sync_folder))
 
         else:
             print("Downloading " + os.path.join(sync_folder, d_file['title']))
@@ -180,32 +223,67 @@ def f_sync(drive):
 
     return
 
-def share_link(drive, permission, file_id, to_print):
+def share_link(drive, option, file_id, mail):
+    # print(mail)
     if is_valid_id(drive, file_id):
         # create shared file
         share_file = drive.CreateFile({'id': file_id})
+        # print(share_file)
+
+        permissions = share_file.GetPermissions()
+        if mail == 'all':
+            for element in permissions:
+                if element['role'] != 'owner':
+                    share_file.DeletePermission(element['id'])
+        else:
+            for element in permissions:
+                if 'emailAddress' in element and element['emailAddress'].lower() == mail.lower():
+                    # print(element['emailAddress'], element['id'])
+                    share_file.DeletePermission(element['id'])
+                if element['id'] == 'anyone' and len(mail) == 0:
+                    share_file.DeletePermission(element['id'])
+
         # check file's permission
-        if permission == "-r":
+        if common_utils.check_option(option, 'r', 3) or common_utils.check_option(option, 's', 2):
             role = "reader"
-        elif permission == "-w":
+        elif common_utils.check_option(option, 'w', 3):
             role = "writer"
+        elif common_utils.check_option(option, 'u', 3):
+            # share_file.FetchMetadata(fields='permissionIds')
+            # print(share_file['permissionIds'])
+            return
         else:
             print("Permission is not a valid. Try again")
             return
 
-        share_file.InsertPermission({
-            'type': 'anyone',
-            'value': 'anyone',
-            'role': role
-        })
+        # permissions = share_file.GetPermissions()
+        # print(permissions)
+
+        if len(mail) == 0:
+            share_file.InsertPermission({
+                'type': 'anyone',
+                'value': 'anyone',
+                'role': role
+            })
+        else:
+            try:
+                share_file.InsertPermission({
+                    'type': 'user',
+                    'value': mail,
+                    'role': role
+                })
+            except:
+                print("%s is an invalid mail!" % mail)
+                return
 
         share_file.FetchMetadata(fields='alternateLink, title')
 
-        if to_print:
-            print("Share link copied to clipboard!")
-            pyperclip.copy(share_file['alternateLink'])
-            mess = pyperclip.paste()
-            print(mess)
+        # print(share_file['alternateLink'])
+        print("Share link copied to clipboard!")
+        pyperclip.copy(share_file['alternateLink'])
+        mess = pyperclip.paste()
+        print(mess)
+
 
 def file_remove(drive, mode, addrs):
     print(addrs)
@@ -243,6 +321,7 @@ def file_remove(drive, mode, addrs):
         print("%s is not a valid mode" % mode)
         return
 
+
 def file_restore(drive, addrs):
     print(addrs)
     for addr in addrs:
@@ -258,15 +337,18 @@ def file_restore(drive, addrs):
                 # ele done nothing
                 else:
                     print("%s is not trash" % f_name)
-                    return;
+                    return
+
 
 def is_valid_id(drive, file_id):
     try:
-        drive.CreateFile({'id': file_id})
-    except files.ApiRequestError:
-        print("%s is an invalid file_id!" % file_id)
+        file_check = drive.CreateFile({'id': file_id})
+        file_check.FetchMetadata()
+    except:
+        # print("%s is an invalid file_id!" % file_id)
         return False
     return True
+
 
 def is_trash(drive, file_id):
     for f in drive.ListFile({'q': "'root' in parents and trashed=true"}).GetList():
@@ -275,10 +357,46 @@ def is_trash(drive, file_id):
     return False
 
 
-# List all files and folders in the sync directory
-def f_list_local():
-    for f in os.listdir(config_utils.get_dir_sync_location()):
-        print(f)
+def f_list_local(folder, recursive):
+    """List all files and folders in the sync directory
+
+        :param folder: Canonical path of folder
+        :param recursive: True if recursive and and vice versa
+
+        :returns: List of files with information
+    """
+
+    dicts = []
+    if recursive:
+        subfolders, local_files = common_utils.run_fast_scandir(folder)
+        for file in local_files:
+            # print(file)
+            stats = os.stat(file)
+            result = {
+                'storageLocation': 'local',
+                'title': common_utils.get_file_name(file),
+                'canonicalPath': file,
+                'modifiedDate': stats.st_mtime,
+                'md5Checksum': hashlib.md5(open(file, 'rb').read()).hexdigest(),
+                'excludeUpload': False
+            }
+            dicts.append(result)
+        return dicts
+    else:
+        # for file in os.listdir(folder):
+        for file in os.scandir(folder):
+            stats = os.stat(file.path)
+            result = {
+                'storageLocation': 'local',
+                'title': common_utils.get_file_name(file),
+                'canonicalPath': file,
+                'modifiedDate': stats.st_mtime,
+                'md5Checksum': hashlib.md5(open(file.path, 'rb').read()).hexdigest() if file.is_file() else None,
+                'excludeUpload': False
+            }
+            dicts.append(result)
+        return dicts
+
 
 # Operations for file list commands
 def f_list(drive, keyword, recursive):
@@ -290,14 +408,30 @@ def f_list(drive, keyword, recursive):
             for f in drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList():
                 # if file in list is folder, get it's file list
                 if f['mimeType'] == 'application/vnd.google-apps.folder':
-                    f_all(drive, f['id'], file_list, False, None)
+                    # print(f['title'])
+                    f_all(drive, f['id'], file_list, False, None, None)
                 else:
                     file_list.append(f)
         else:
-            f_all(drive, keyword, file_list, False, None)
+            f_all(drive, keyword, file_list, False, None, None)
 
-        for f in file_list:
-            print('title: %s, id: %s' % (f['title'], f['id']))
+        # for f in file_list:
+        #     print('title: %s, id: %s' % (f['title'], f['id']))
+
+        dicts = []
+        for file in file_list:
+            result = {
+                'storageLocation': 'remote',
+                'id': file['id'],
+                'alternateLink': file['alternateLink'],
+                'title': file['title'],
+                'modifiedDate': datetime.timestamp(datetime.strptime(file['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')),
+                'parents': file['parents'],
+                'md5Checksum': file.get('md5Checksum')
+            }
+            dicts.append(result)
+
+        return dicts
 
     # lists all files and folder inside given folder
     else:
@@ -319,5 +453,6 @@ def f_list(drive, keyword, recursive):
             for f in file_list:
                 print('title: %s, id: %s' % (f['title'], f['id']))
 
+
 def f_open(folder):
-    os.system('xdg-open "%s"' % config_utils.down_addr())
+    os.system('xdg-open "%s"' % config_utils.get_dir_sync_location())

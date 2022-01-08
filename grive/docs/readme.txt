@@ -8,20 +8,20 @@
 
         The parameters that can be used are:
 
-            * -re, -reset, reset
+            * -re
                 Reset account associated with Google Drive.
                 Automatically executed at the first run of Grive
 
-            * -st, -start, start
+            * -st
                 Start the automatic Grive syncing of the folders set as upload directories
 
-            * -x, -stop, stop
+            * -x
                 Stop the automatic Grive syncing of the folders set as upload directories
 
-            * -y, -status, status
+            * -y
                 Shows whether Grive is uploading automatically or not.
 
-            * -v, -version, version
+            * -v
                 Shows the current version of the Grive.
 
             * -config : Gives option to edit the configuration file on which automatic upload and download works
@@ -47,16 +47,22 @@
 
             * -ls_files [folder_id/"root"] : Lists all files recursively present in the folder id given
 
-            * -download [file_id1] [file_id2]
-                Downloads the given file from your Google Drive
+            * -d [file_id1] [file_id2] ([folder]) : Downloads the given file from your Google Drive
                 Multiple files can be downloaded by putting file_ids one after the other
-                Use "-d all" argument to download entire your entire Google Drive folder
+                -do, -od: Download with overwrite mode
+
 
             * -upload [file_name] : Upload file/folder corresponding to the address given to Google Drive, for one time.
 
             * -sync : Sync specified folder to Google drive
 
-            * -share [file_id] : Outputs the shareable link of the file.
+            * -s [file_id] ([mail]) : Outputs the shareable link of the file
+                -sr, -rs : Share with 'reader' permission
+                -sw, -ws : Share with 'writer' permission
+                -su, -us : Unshare file
+                In case
+                    Don't specify [mail]    : Share/Unshare with type every one
+                    [mail] = 'all'          : Unshare file completely
 
             * -restore [file_id] : Restore files from trash.
 

@@ -1,4 +1,6 @@
 {
     "Sync_Dir": "Documents/sync_grive",
-    "Share_Link": true
+    "Share_Link": true,
+    "Sync_Cycle": 1,
+    "Auto_Start": false
 }

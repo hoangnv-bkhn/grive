@@ -2,15 +2,17 @@ from builtins import str
 
 import sys
 from os import path
+import os
+from datetime import datetime
 from pydrive.drive import GoogleDrive
 
 # list of parameters which require verification
 require_auth = [
-    "-start", "start", "-st",
+    "-st",
     "-by_cron",
-    "-download", "download", "-d",
+    "-d", "-od", "-do",
     "-upload", "upload", "-u",
-    "-share", "share", "-s",
+    "-s", "-sr", "-rs", "-sw", "-ws", "-su", "-us",  # share file
     "-r", "-remove", "remove",
     "-ls_files", "ls_files", "-laf",
     "-ls", "ls", "-l",
@@ -19,6 +21,7 @@ require_auth = [
     "-restore", "restore", "-rs",
     "-sync", "sync", "-synchronize"
 ]
+
 
 def main():
     # set path for relativistic imports if not launched as package
@@ -43,13 +46,12 @@ def main():
     arg_index = 0
 
     while True:
-
         if arg_index >= len(arguments):
             break
 
         # if argument requires authentication
         if arguments[arg_index] in require_auth:
-            gauth = auth_utils.drive_auth(0)  # parameter to reset GAccount permissions
+            gauth = auth_utils.drive_auth(0)  # parameter to reset Google Account permissions
             drive = GoogleDrive(gauth)
         # set drive to none for operations not requiring auth
         else:
@@ -71,48 +73,59 @@ def main():
                 p_data = p_file.read()
                 print(p_data)
 
-        elif arguments[arg_index] == "-re" or arguments[arg_index] == "-reset" or arguments[arg_index] == "reset":
+        elif arguments[arg_index] == "-re":
             auth_utils.reset_account()
 
-        elif arguments[arg_index] == "-st" or arguments[arg_index] == "-start" or arguments[arg_index] == "start":
+        elif arguments[arg_index] == "-st":
             jobs.cron_process("start")
 
-        elif arguments[arg_index] == "-x" or arguments[arg_index] == "-stop" or arguments[arg_index] == "stop":
+        elif arguments[arg_index] == "-x":
             jobs.cron_process("stop")
 
-        elif arguments[arg_index] == "-y" or arguments[arg_index] == "-status" or arguments[arg_index] == "status":
+        elif arguments[arg_index] == "-y":
             jobs.cron_process("status")
 
-        elif arguments[arg_index] == "-u" or arguments[arg_index] == "-upload" or arguments[arg_index] == "upload":
+        elif arguments[arg_index] == "-u":
             arg_index += 1
             if is_matching(arg_index, len(arguments)):
                 drive_utils.f_create(drive, arguments[arg_index], None,
                                      str(common_utils.get_file_name(arguments[arg_index])), True)
 
-        elif arguments[arg_index] == "-sync" or arguments[arg_index] == "-synchronize" or arguments[arg_index] == "sync":
+        elif arguments[arg_index] == "-sync":
             drive_utils.f_sync(drive)
 
-        elif arguments[arg_index] == "-d" or arguments[arg_index] == "-download" or arguments[arg_index] == "download":
+        elif arguments[arg_index] == "-d" or arguments[arg_index] == "-od" or arguments[arg_index] == "-do":
             arg_index += 1
             if is_matching(arg_index, len(arguments)):
-                # download entire drive folder
-                if arguments[arg_index] == "all":
-                    file_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
-                    # print(file_list)
-                    for argument in file_list:
-                        drive_utils.f_down(drive, argument, config_utils.get_dir_sync_location())
-                # download only specified folder
+                if not drive_utils.is_valid_id(drive, arguments[len(arguments) - 1]) and len(arguments) > 2:
+                    if os.path.exists(arguments[len(arguments) - 1]):
+                        save_location = arguments[len(arguments) - 1]
+                        for argument in arguments[arg_index: len(arguments) - 1]:
+                            drive_utils.f_down(drive, arguments[0], argument, save_location)
+                    else:
+                        print('%s does not exist !' % arguments[len(arguments) - 1])
                 else:
                     for argument in arguments[arg_index: len(arguments)]:
-                        # print(argument)
-                        drive_utils.f_down(drive, argument, config_utils.get_dir_sync_location())
+                        save_location = common_utils.get_local_path(drive, argument,
+                                                                    config_utils.get_dir_sync_location())
+                        drive_utils.f_down(drive, arguments[0], argument, save_location)
                 arg_index = len(arguments)  # all arguments used up by download
 
-        elif arguments[arg_index] == "-s" or arguments[arg_index] == "-share" or arguments[arg_index] == "share":
-            arg_index += 2
+        elif arguments[arg_index] == "-s" or arguments[arg_index] == "-sr" or arguments[arg_index] == "-rs" or \
+                arguments[arg_index] == "-ws" or arguments[arg_index] == "-sw" or \
+                arguments[arg_index] == "-su" or arguments[arg_index] == "-us":
+            arg_index += 1
             if is_matching(arg_index, len(arguments)):
-                drive_utils.share_link(drive, arguments[arg_index - 1], arguments[arg_index], True)
-                arg_index = len(arguments)
+                # share to anyone
+                if len(arguments) == 2:
+                    drive_utils.share_link(drive, arguments[arg_index - 1], arguments[arg_index], "")
+                else:
+                    # share for specified users
+                    for argument in arguments[arg_index + 1: len(arguments)]:
+                        # print(argument)
+                        drive_utils.share_link(drive, arguments[0], arguments[1], argument)
+
+                arg_index = len(arguments)  # all arguments used up by share
 
         elif arguments[arg_index] == "-r" or arguments[arg_index] == "-remove" or arguments[arg_index] == "remove":
             arg_index += 2
@@ -132,7 +145,10 @@ def main():
                 # list of files in downloads directory
                 elif arguments[arg_index + 1] == "local":
                     arg_index += 1
-                    drive_utils.f_list_local()
+                    files_list = drive_utils.f_list_local(config_utils.get_dir_sync_location(), False)
+                    for file in files_list:
+                        print('Title: %s \t Modified Date: %s' % (file['title'],
+                                                                  datetime.utcfromtimestamp(file['modifiedDate'])))
                 # no argument matching -ls
                 # else:
                 #     drive_utils.f_list(drive, "all", 0)
@@ -145,7 +161,9 @@ def main():
                 arguments[arg_index] == "ls_files":
             arg_index += 1
             if is_matching(arg_index, len(arguments)):
-                drive_utils.f_list(drive, arguments[arg_index], 1)
+                files_list = drive_utils.f_list(drive, arguments[arg_index], 1)
+                for file in files_list:
+                    print('title: %s, id: %s' % (file['title'], file['id']))
 
         elif arguments[arg_index] == "-ls_trash" or arguments[arg_index] == "-lt" or arguments[arg_index] == "ls_trash":
             drive_utils.f_list(drive, "trash", 0)
@@ -161,29 +179,31 @@ def main():
             # modified to get the id and destiny directory
             if (arg_index + 1) < len(arguments):
                 arg_index += 1
-                # add the Id to same dicetory on gDrive
+                # add the Id to same directory on gDrive
                 jobs.by_cron(drive, arguments[arg_index])
             else:
                 jobs.by_cron(drive)
 
-        elif arguments[arg_index] == "-rs" or arguments[arg_index] == "-restore" or arguments[arg_index] == "restore":
-            arg_index += 1
-            # in case of less arguments than required
-            if is_matching(arg_index, len(arguments)):
-                drive_utils.file_restore(drive, arguments[arg_index:len(arguments)])
-                arg_index = len(arguments)
+        # elif arguments[arg_index] == "-rs" or arguments[arg_index] == "-restore" or arguments[arg_index] == "restore":
+        #     arg_index += 1
+        #     # in case of less arguments than required
+        #     if is_matching(arg_index, len(arguments)):
+        #         drive_utils.file_restore(drive, arguments[arg_index:len(arguments)])
+        #         arg_index = len(arguments)
 
         else:
             print(str(arguments[arg_index]) + " is an unrecognised argument. Please report if you know this is an error"
-                                          ".\n\n")
+                                              ".\n\n")
 
         arg_index += 1
+
 
 def is_matching(index, len_arg):
     if index >= len_arg:
         print("Error: arguments less than what expected")
         return False
     return True
+
 
 if __name__ == "__main__" and __package__ is None:
     main()
