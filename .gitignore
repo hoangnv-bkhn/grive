@@ -5,6 +5,9 @@
 ### Linux ###
 *~
 
+grive/config_dicts/metadata_file.json
+grive/credential.json
+
 # temporary files which can be created if a process still has a handle open of a deleted file
 .fuse_hidden*
 
@@ -29,8 +32,6 @@
 .idea/**/usage.statistics.xml
 .idea/**/dictionaries
 .idea/**/shelf
-
-grive/credential.json
 
 # AWS User-specific
 .idea/**/aws.xml

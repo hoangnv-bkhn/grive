@@ -35,7 +35,10 @@ def drive_auth(reset):
 
     elif g_auth.access_token_expired:
         # refresh authorisation if expired
-        g_auth.Refresh()
+        try:
+            g_auth.Refresh()
+        except:
+            print("Please reconnect your account with -re option !")
 
     else:
         # initialise the saved data
