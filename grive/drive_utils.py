@@ -285,8 +285,8 @@ def share_link(drive, option, file_id, mail):
         print(mess)
 
 
-def file_remove(drive, mode, addrs):
-    print(addrs)
+def f_remove(drive, mode, addrs):
+    # print(addrs)
     if mode == "local":
         sync_dir = config_utils.get_dir_sync_location()
         # Appending file/folder name to download directory
@@ -317,6 +317,41 @@ def file_remove(drive, mode, addrs):
                 else:
                     r_file.Trash()
                     print("%s moved to GDrive trash. List files in trash by -lt parameter" % f_name)
+    
+    elif mode == "all":
+        sync_dir = config_utils.get_dir_sync_location()
+        for addr in addrs:
+            # check if file_id valid
+            if is_valid_id(drive, addr):
+                # file to be removed
+                r_file = drive.CreateFile({'id': addr})
+                f_name = r_file['title']
+                f_parent = r_file['parents'][0]
+                folder_name = []
+                while f_parent['isRoot'] is False:
+                    folder = drive.CreateFile({'id': f_parent['id']})
+                    folder_name.append(folder['title'])
+                    f_parent = folder['parents'][0]
+                if (len(folder_name) > 0):
+                    folder_name.reverse()
+                    f_path = os.path.join(sync_dir)
+                    for x in folder_name:
+                        f_path = os.path.join(f_path, x)
+                    f_path = os.path.join(f_path, f_name)
+                    if os.path.exists(f_path):
+                        if os.path.isdir(f_path):
+                            shutil.rmtree(f_path)
+                        else:
+                            os.remove(f_path)
+                # delete permanently if in trash
+                if is_trash(drive, r_file['id']):
+                    r_file.Delete()
+                    print("%s deleted permanently" % f_name)
+                # move to trash
+                else:
+                    r_file.Trash()
+                    print("%s moved to GDrive trash. List files in trash by -lt parameter" % f_name)
+
     else:
         print("%s is not a valid mode" % mode)
         return

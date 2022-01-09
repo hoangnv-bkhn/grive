@@ -13,7 +13,7 @@ require_auth = [
     "-d", "-od", "-do",
     "-upload", "upload", "-u",
     "-s", "-sr", "-rs", "-sw", "-ws", "-su", "-us",  # share file
-    "-r", "-remove", "remove",
+    "-rm", "-rml", "-rmr",
     "-ls_files", "ls_files", "-laf",
     "-ls", "ls", "-l",
     "-ls_trash", "ls_trash", "-lt",
@@ -127,11 +127,16 @@ def main():
 
                 arg_index = len(arguments)  # all arguments used up by share
 
-        elif arguments[arg_index] == "-r" or arguments[arg_index] == "-remove" or arguments[arg_index] == "remove":
-            arg_index += 2
+        elif arguments[arg_index] == "-rm" or arguments[arg_index] == "-rml" or arguments[arg_index] == "-rmr":
+            mode = "all"
+            if (arguments[arg_index] == "-rml"):
+                mode = "local"
+            elif (arguments[arg_index] == "-rmr"):
+                mode = "remote"
+            arg_index += 1
             # in case of less arguments than required
             if is_matching(arg_index, len(arguments)):
-                drive_utils.file_remove(drive, arguments[arg_index - 1], arguments[arg_index:len(arguments)])
+                drive_utils.f_remove(drive, mode, arguments[arg_index:len(arguments)])
                 arg_index = len(arguments)
 
         elif arguments[arg_index] == "-o" or arguments[arg_index] == "-open" or arguments[arg_index] == "open":

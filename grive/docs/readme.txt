@@ -66,10 +66,11 @@
 
             * -restore [file_id] : Restore files from trash.
 
-            * -remove [local/remote] [file_name/folder_name/file_id/folder_id]
-                Delete the mentioned file from Google Drive sync directory or Google Drive remote.
-                Please input file_id/folder_id if it's a remote file.
-                You can add multiple file_ids/folder_ids one after the other, e.g. -remove remote [file_id1] [file_id2]
+            * -rm [file_id/folder_id]
+                Delete the mentioned file from Google Drive sync directory and Google Drive remote.
+                You can add multiple file_ids/folder_ids one after the other, e.g. -rm [file_id1] [file_id2]
+                -rml [file_name/folder_name] : Delete the mentioned file from Google Drive sync directory
+                -rmr [file_id/folder_id] : Delete the mentioned file from Google Drive remote
 
             * -open, -o  :  Opens the Sync Directory in file explorer
 
