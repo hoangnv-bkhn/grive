@@ -52,7 +52,9 @@
                 -do, -od: Download with overwrite mode
 
 
-            * -upload [file_name] : Upload file/folder corresponding to the address given to Google Drive, for one time.
+            * -u [file_name/folder_name] : Upload file/folder corresponding to the root given to Google Drive, for one time.
+                -uf: Upload file/folder corresponding to the address given to Google Drive, for one time.
+                -ufo: Upload file/folder corresponding to the address given to Google Drive and overwrite mode.
 
             * -sync : Sync specified folder to Google drive
 

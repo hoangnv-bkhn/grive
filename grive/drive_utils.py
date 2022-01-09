@@ -142,6 +142,7 @@ def f_create(drive, addr, fold_id, rel_addr, show_update):
         folder['title'] = common_utils.get_file_name(addr)  # sets folder title
         folder['mimeType'] = 'application/vnd.google-apps.folder'  # assigns it as GDrive folder
         folder.Upload()
+        os.setxattr(addr, 'user.id', str.encode(folder['id']))
 
         # Traversing inside files/folders
         for item in os.listdir(addr):
@@ -163,31 +164,81 @@ def f_create(drive, addr, fold_id, rel_addr, show_update):
         up_file.SetContentFile(addr)
         up_file['title'] = common_utils.get_file_name(addr)  # sets file title to original
         up_file.Upload()
+        os.setxattr(addr, 'user.id', str.encode(up_file['id']))
 
     return True
 
-def f_up(drive, addr, fold_id):
-    # checks if the specified file/folder exists
-    if not os.path.exists(addr):
-        print("Specified file/folder doesn't exist, please remove from upload list using -config")
-        return
-
-    # pass the address to f_create and on success delete/move file/folder
-    if f_create(drive, addr, fold_id, str(common_utils.get_file_name(addr)), True):
-        # remove file if Remove_Post_Upload is true, otherwise move to GDrive downloads
-        # remove_post_upload = config_utils.read_config()['Remove_Post_Upload']
-        remove_post_upload = False
-        if remove_post_upload:
-            # use recursive removal if directory
-            if os.path.isdir(addr):
-                shutil.rmtree(addr)
-            # normal os removal for file
-            else:
-                os.remove(addr)
-        # else:
-        #     shutil.move(addr, config_utils.get_dir_sync_location())
-    else:
-        print("Upload unsuccessful, please try again!")
+def f_up(drive, fold_id, addrs, overwrite):
+    sync_dir = config_utils.get_dir_sync_location()
+    for addr in addrs:
+        # checks if the specified file/folder exists
+        if not os.path.exists(addr):
+            print("Specified file/folder doesn't exist, please remove from upload list using -config")
+            return
+        f_local_name = str(common_utils.get_file_name(addr))
+        if sync_dir not in addr or fold_id is not None:
+            # pass the address to f_create and on success delete/move file/folder
+            if f_create(drive, addr, fold_id, f_local_name, True) is False:
+                print("Upload unsuccessful, please try again!")
+            continue
+        try:
+            f_id = os.getxattr(addr, 'user.id')
+            f_id = f_id.decode()
+            if overwrite is True:
+                up_file = drive.CreateFile({'id': str(f_id)})
+                up_file['title'] = str(f_local_name)
+                up_file.SetContentFile(addr)
+                print("Modified file " + f_local_name)
+                up_file.Upload()
+        except:
+            fold_addr = os.path.dirname(addr)
+            fold_name = []
+            while fold_addr:
+                try:
+                    if str(fold_addr) == str(sync_dir):
+                        if (len(fold_name) > 0):
+                            fold_name.reverse()
+                            i = 0
+                            folder_addr = os.path.join(sync_dir)
+                            for x in fold_name:
+                                if i == 0:
+                                    folder = drive.CreateFile()
+                                else:
+                                    folder = drive.CreateFile({"parents": [{"kind": "drive#fileLink", "id": folder['id']}]})
+                                folder['title'] = x  # sets folder title
+                                folder['mimeType'] = 'application/vnd.google-apps.folder'  # assigns it as GDrive folder
+                                folder.Upload()
+                                folder_addr = os.path.join(folder_addr, x)
+                                os.setxattr(folder_addr, 'user.id', str.encode(folder['id']))
+                                i += 1
+                            if f_create(drive, addr, folder['id'], f_local_name, True) is False:
+                                print("Upload unsuccessful, please try again!")
+                        else:
+                            if f_create(drive, addr, None, f_local_name, True) is False:
+                                print("Upload unsuccessful, please try again!")
+                        break
+                    folder_id = os.getxattr(fold_addr, 'user.id')
+                    folder_id = folder_id.decode()
+                    if (len(fold_name) > 0):
+                        fold_name.reverse()
+                        folder = None
+                        folder_addr = os.path.join(fold_addr)
+                        for x in fold_name:
+                            folder = drive.CreateFile({"parents": [{"kind": "drive#fileLink", "id": folder['id'] or folder_id}]})
+                            folder['title'] = x  # sets folder title
+                            folder['mimeType'] = 'application/vnd.google-apps.folder'  # assigns it as GDrive folder
+                            folder.Upload()
+                            folder_addr = os.path.join(folder_addr, x)
+                            os.setxattr(folder_addr, 'user.id', str.encode(folder['id']))
+                        if f_create(drive, addr, folder['id'], f_local_name, True) is False:
+                            print("Upload unsuccessful, please try again!")
+                    else:
+                        if f_create(drive, addr, folder_id, f_local_name, True) is False:
+                            print("Upload unsuccessful, please try again!")
+                    break
+                except:
+                    fold_name.append(str(common_utils.get_file_name(fold_addr)))
+                    fold_addr = os.path.dirname(fold_addr)
 
 
 def f_sync(drive):

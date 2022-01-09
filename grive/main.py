@@ -11,7 +11,7 @@ require_auth = [
     "-st",
     "-by_cron",
     "-d", "-od", "-do",
-    "-upload", "upload", "-u",
+    "-u", "-uf", "-uo",
     "-s", "-sr", "-rs", "-sw", "-ws", "-su", "-us",  # share file
     "-rm", "-rml", "-rmr",
     "-ls_files", "ls_files", "-laf",
@@ -85,11 +85,20 @@ def main():
         elif arguments[arg_index] == "-y":
             jobs.cron_process("status")
 
-        elif arguments[arg_index] == "-u":
-            arg_index += 1
+        elif arguments[arg_index] == "-u" or arguments[arg_index] == "-uf" or arguments[arg_index] == "-uo":
+            folder_id = None
+            mode = False
+            if (arguments[arg_index] == "-uo"):
+                mode = True
+            if (arguments[arg_index] == "-uf"):
+                folder_id = arguments[arg_index + 1]
+                arg_index += 2
+            else:
+                arg_index += 1
             if is_matching(arg_index, len(arguments)):
-                drive_utils.f_create(drive, arguments[arg_index], None,
-                                     str(common_utils.get_file_name(arguments[arg_index])), True)
+                drive_utils.f_up(drive, folder_id, arguments[arg_index:len(arguments)], mode)
+                arg_index = len(arguments)
+
 
         elif arguments[arg_index] == "-sync":
             drive_utils.f_sync(drive)
