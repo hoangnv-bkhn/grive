@@ -48,7 +48,8 @@ def f_all(drive, fold_id, file_list, download, sync_folder, option):
                 file_list.append(f)
 
 
-def f_down(drive, option, file_id, sync_folder):
+def f_down(drive, option, file_id, save_folder):
+    # print(sync_folder)
     # check if file id not valid
     if not is_valid_id(drive, file_id):
         print("%s is an invalid id of file or folder !" % file_id)
@@ -61,64 +62,97 @@ def f_down(drive, option, file_id, sync_folder):
         mime_swap = json.load(f)
 
     overwrite = False
-    if common_utils.check_option(option, 'o', 3):
+    if common_utils.check_option(option, 'o', 3) or common_utils.check_option(option, 'o', 4):
         overwrite = True
 
     # checking if the specified id belongs to a folder
     if d_file['mimeType'] == mime_swap['folder']:
-        folder_name = d_file['title']
-        folder_path = os.path.join(sync_folder, folder_name)
-        if folder_name in os.listdir(sync_folder):
+        # folder_name = d_file['title']
+
+        folder_remote_name = d_file['title']
+        folder_remote_id = d_file['id']
+        has_in_local = False
+        folder_local_name = folder_remote_name
+
+        # folder_path = os.path.join(sync_folder, folder_name)
+
+        for elem in f_list_local(save_folder, 0):
+            if elem['id'] == folder_remote_id:
+                has_in_local = True
+                folder_local_name = elem['title']
+
+        folder_path = os.path.join(save_folder, folder_local_name)
+        if has_in_local:
             if overwrite:
                 if os.path.isdir(folder_path):
                     shutil.rmtree(folder_path)
-                    print("Recreating folder %s in %s" % (folder_name, sync_folder))
+                    print("Recreating folder %s in %s" % (folder_remote_name, save_folder))
                     common_utils.dir_exists(folder_path)
-                    f_all(drive, d_file['id'], None, True, folder_path, option)
+                    f_all(drive, folder_remote_id, None, True, folder_path, option)
             else:
-                print("Folder '%s' already present in %s" % (d_file['title'], sync_folder))
+                print("Folder '%s' already present in %s" % (d_file['title'], save_folder))
         else:
-            print("Creating folder %s in %s" % (folder_name, sync_folder))
-            common_utils.dir_exists(os.path.join(sync_folder, d_file['title']))
+            print("Creating folder %s in %s" % (folder_remote_name, save_folder))
+            common_utils.dir_exists(os.path.join(save_folder, d_file['title']))
             f_all(drive, d_file['id'], None, True, folder_path, option)
 
     # for online file types like Gg Docs, Gg Sheet..etc
     elif d_file['mimeType'] in mime_swap:
         # open formats.json for adding custom format
-        # with open(common_utils.format_dict) as f:
-        #     format_add = json.load(f)
+        with open(common_utils.format_dict) as f:
+            format_add = json.load(f)
+
+        file_remote_name = d_file['title']
+        file_remote_id = d_file['id']
+        has_in_local = False
+        file_local_name = file_remote_name
 
         # changing file name to suffix file format
-        # f_name = d_file['title'] + format_add[d_file['mimeType']]
-        f_name = d_file['title']
-        if f_name in os.listdir(sync_folder):
+        f_name = file_remote_name + format_add[d_file['mimeType']]
+        # f_name = d_file['title']
+
+        for elem in f_list_local(save_folder, 0):
+            if elem['id'] == file_remote_id:
+                has_in_local = True
+                file_local_name = elem['title']
+
+        flag = True
+        if has_in_local:
             if overwrite:
-                if os.path.isfile(os.path.join(sync_folder, f_name)):
-                    os.remove(os.path.join(sync_folder, f_name))
-                    print("Downloading " + os.path.join(sync_folder, f_name))
-                    d_file.GetContentFile(os.path.join(sync_folder, f_name),
-                                          mimetype=mime_swap[d_file['mimeType']])
+                if os.path.isfile(os.path.join(save_folder, file_local_name)):
+                    os.remove(os.path.join(save_folder, file_local_name))
             else:
-                print("%s already present in %s" % (f_name, sync_folder))
-        else:
-            print("Downloading " + os.path.join(sync_folder, f_name))
-            d_file.GetContentFile(os.path.join(sync_folder, f_name),
+                flag = False
+                print("%s already present in %s" % (f_name, save_folder))
+        if flag:
+            print("Downloading " + os.path.join(save_folder, f_name))
+            d_file.GetContentFile(os.path.join(save_folder, f_name),
                                   mimetype=mime_swap[d_file['mimeType']])
+            os.setxattr(os.path.join(save_folder, f_name), 'user.id', str.encode(file_remote_id))
 
     else:
-        f_name = d_file['title']
-        if f_name in os.listdir(sync_folder):
-            if overwrite:
-                if os.path.isfile(os.path.join(sync_folder, f_name)):
-                    os.remove(os.path.join(sync_folder, f_name))
-                    print("Downloading " + os.path.join(sync_folder, d_file['title']))
-                    d_file.GetContentFile(os.path.join(sync_folder, d_file['title']))
-            else:
-                print("%s already present in %s" % (d_file['title'], sync_folder))
+        file_remote_name = d_file['title']
+        file_remote_id = d_file['id']
+        has_in_local = False
+        file_local_name = file_remote_name
+        for elem in f_list_local(save_folder, 0):
+            if elem['id'] == file_remote_id:
+                has_in_local = True
+                file_local_name = elem['title']
 
-        else:
-            print("Downloading " + os.path.join(sync_folder, d_file['title']))
-            d_file.GetContentFile(os.path.join(sync_folder, d_file['title']))
+        flag = True
+        if has_in_local:
+            if overwrite:
+                if os.path.isfile(os.path.join(save_folder, file_local_name)):
+                    os.remove(os.path.join(save_folder, file_local_name))
+            else:
+                flag = False
+                print("%s already present in %s" % (d_file['title'], save_folder))
+
+        if flag:
+            print("Downloading " + os.path.join(save_folder, file_remote_name))
+            d_file.GetContentFile(os.path.join(save_folder, file_remote_name))
+            os.setxattr(os.path.join(save_folder, file_remote_name), 'user.id', str.encode(file_remote_id))
 
 
 def f_create(drive, addr, fold_id, rel_addr, show_update):
@@ -165,6 +199,7 @@ def f_create(drive, addr, fold_id, rel_addr, show_update):
         up_file.Upload()
 
     return True
+
 
 def f_up(drive, addr, fold_id):
     # checks if the specified file/folder exists
@@ -222,6 +257,7 @@ def f_sync(drive):
             up_file.Upload()
 
     return
+
 
 def share_link(drive, option, file_id, mail):
     # print(mail)
@@ -372,8 +408,14 @@ def f_list_local(folder, recursive):
         for file in local_files:
             # print(file)
             stats = os.stat(file)
+            try:
+                instance_id = os.getxattr(os.path.join(folder, file), 'user.id').decode()
+            except:
+                instance_id = None
+
             result = {
                 'storageLocation': 'local',
+                'id': instance_id,
                 'title': common_utils.get_file_name(file),
                 'canonicalPath': file,
                 'modifiedDate': stats.st_mtime,
@@ -386,8 +428,15 @@ def f_list_local(folder, recursive):
         # for file in os.listdir(folder):
         for file in os.scandir(folder):
             stats = os.stat(file.path)
+
+            try:
+                instance_id = os.getxattr(os.path.join(folder, file), 'user.id').decode()
+            except:
+                instance_id = None
+
             result = {
                 'storageLocation': 'local',
+                'id': instance_id,
                 'title': common_utils.get_file_name(file),
                 'canonicalPath': file,
                 'modifiedDate': stats.st_mtime,
@@ -450,8 +499,9 @@ def f_list(drive, keyword, recursive):
         else:
             q_string = "'%s' in parents and trashed=false" % keyword
             file_list = drive.ListFile({'q': q_string}).GetList()
-            for f in file_list:
-                print('title: %s, id: %s' % (f['title'], f['id']))
+            # for f in file_list:
+            #     print('title: %s, id: %s' % (f['title'], f['id']))
+            return file_list
 
 
 def f_open(folder):

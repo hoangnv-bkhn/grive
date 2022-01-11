@@ -1,6 +1,1 @@
-{
-    "Sync_Dir": "Documents/sync_grive",
-    "Share_Link": true,
-    "Sync_Cycle": 1,
-    "Auto_Start": false
-}
+{"Sync_Dir": "Documents/sync_grive", "Sync_Cycle": 1, "Auto_Start": false}

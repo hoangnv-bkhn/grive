@@ -1,14 +1,15 @@
-from pydrive.auth import GoogleAuth
-from dotenv import load_dotenv
-load_dotenv()
 import sys
 import os
+from pydrive.auth import GoogleAuth
+# from dotenv import load_dotenv
+# load_dotenv()
 
 try:
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     import common_utils
 except ImportError:
     from . import common_utils
+
 
 def drive_auth(reset):
     g_auth = GoogleAuth()
@@ -46,11 +47,13 @@ def drive_auth(reset):
 
     return g_auth
 
+
 def reset_account():
     if os.path.isfile(common_utils.get_credential_file()):
         os.remove(common_utils.get_credential_file())
 
     drive_auth(True)
+
 
 if __name__ == '__main__':
     pass

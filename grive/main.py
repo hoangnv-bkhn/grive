@@ -10,7 +10,7 @@ from pydrive.drive import GoogleDrive
 require_auth = [
     "-st",
     "-by_cron",
-    "-d", "-od", "-do",
+    "-d", "-do", "-df", "-dfo",
     "-upload", "upload", "-u",
     "-s", "-sr", "-rs", "-sw", "-ws", "-su", "-us",  # share file
     "-r", "-remove", "remove",
@@ -85,6 +85,9 @@ def main():
         elif arguments[arg_index] == "-y":
             jobs.cron_process("status")
 
+        elif arguments[arg_index] == "-c":
+            config_utils.write_config()
+
         elif arguments[arg_index] == "-u":
             arg_index += 1
             if is_matching(arg_index, len(arguments)):
@@ -94,22 +97,27 @@ def main():
         elif arguments[arg_index] == "-sync":
             drive_utils.f_sync(drive)
 
-        elif arguments[arg_index] == "-d" or arguments[arg_index] == "-od" or arguments[arg_index] == "-do":
+        elif arguments[arg_index] == "-d" or arguments[arg_index] == "-do" \
+                or arguments[arg_index] == "-df" or arguments[arg_index] == "-dfo":
             arg_index += 1
             if is_matching(arg_index, len(arguments)):
-                if not drive_utils.is_valid_id(drive, arguments[len(arguments) - 1]) and len(arguments) > 2:
+                if arguments[0] == "-df" or arguments[0] == "-dfo":
                     if os.path.exists(arguments[len(arguments) - 1]):
                         save_location = arguments[len(arguments) - 1]
                         for argument in arguments[arg_index: len(arguments) - 1]:
+                            print(argument)
                             drive_utils.f_down(drive, arguments[0], argument, save_location)
                     else:
                         print('%s does not exist !' % arguments[len(arguments) - 1])
-                else:
+
+                elif arguments[0] == "-d" or arguments[0] == "-do":
                     for argument in arguments[arg_index: len(arguments)]:
                         save_location = common_utils.get_local_path(drive, argument,
                                                                     config_utils.get_dir_sync_location())
                         drive_utils.f_down(drive, arguments[0], argument, save_location)
+
                 arg_index = len(arguments)  # all arguments used up by download
+                # if not drive_utils.is_valid_id(drive, arguments[len(arguments) - 1]) and len(arguments) > 2:
 
         elif arguments[arg_index] == "-s" or arguments[arg_index] == "-sr" or arguments[arg_index] == "-rs" or \
                 arguments[arg_index] == "-ws" or arguments[arg_index] == "-sw" or \
@@ -147,8 +155,8 @@ def main():
                     arg_index += 1
                     files_list = drive_utils.f_list_local(config_utils.get_dir_sync_location(), False)
                     for file in files_list:
-                        print('Title: %s \t Modified Date: %s' % (file['title'],
-                                                                  datetime.utcfromtimestamp(file['modifiedDate'])))
+                        print('Title: %s \t Modified Date: %s ID: %s'
+                              % (file['title'], datetime.fromtimestamp(file['modifiedDate']), file['id']))
                 # no argument matching -ls
                 # else:
                 #     drive_utils.f_list(drive, "all", 0)

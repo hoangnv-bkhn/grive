@@ -26,15 +26,13 @@
 
             * -config : Gives option to edit the configuration file on which automatic upload and download works
                 Sync Directory: The directory where the files are downloaded and uploaded, relative to home directory
-                    (e.g. for "~/Documents/sync_grive", input "Documents/sync_grive")
+                    (e.g. for "~/Documents/sync_grive", can input "Documents/sync_grive" or absolute path)
                     (Default is "sync_grive" directory in you Documents folder)
-                Remove_Post_Upload: [Y/N]
-                    'Y' removes the local file after upload
-                    'N' moves the file to GDrive sync folder after upload
-                        (Default is 'N')
-                Share_Link: [Y/N] 'Y' puts the shareable link of the file uploaded in share.txt in Sync Directory
+                Synchronous Cycle: Integer in range 1 ~ 60
+                        (Default is '1')
+                Run at startup: [Y/N]
+                    'Y' Start up with the system and vise versa
                     (Default is 'Y')
-
                 Configuration is stored in config.json as a dictionary which can be manually edited as well
 
             * -ls [local/remote]
@@ -49,8 +47,12 @@
 
             * -d [file_id1] [file_id2] ([folder]) : Downloads the given file from your Google Drive
                 Multiple files can be downloaded by putting file_ids one after the other
-                -do, -od: Download with overwrite mode
-
+                -do     : Download with overwrite mode
+                -df     : Specify the location to save the file at the end of the command
+                -dof    : Specify the location to save the file at the end of the command with overwrite mode
+                In case
+                    Don't specify [folder]  : Save at the corresponding location on remote
+                    Specify [folder]        : Save at the specified folder
 
             * -upload [file_name] : Upload file/folder corresponding to the address given to Google Drive, for one time.
 

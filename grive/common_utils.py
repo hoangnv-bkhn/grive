@@ -1,3 +1,6 @@
+from datetime import datetime
+import time
+
 from pkg_resources import resource_filename
 # stores default file address
 import os
@@ -37,10 +40,10 @@ def get_username():
 def get_credential_file():
     # when launched as non-package
     try:
-        return os.path.join(home, "credential.json")
+        return os.path.join(home, ".grive_credential.json")
     # when launched as package
     except settings.InvalidConfigError or OSError:
-        return os.path.join(home, "credential.json")
+        return os.path.join(home, ".grive_credential.json")
 
 
 # Extracts file name or folder name from full path
@@ -74,10 +77,13 @@ def get_cloud_path(drive, instance_id, path=[]):
     try:
         file = drive.CreateFile({'id': instance_id})
         if not file['parents'][0]['isRoot']:
+            elem = {}
             parent_folder = drive.CreateFile({'id': file['parents'][0]['id']})
+            elem['name'] = parent_folder['title']
+            elem['id'] = parent_folder['id']
             # print(parent_folder['title'])
             # path.append(parent_folder['title'])
-            path.insert(0, parent_folder['title'])
+            path.insert(0, elem)
             get_cloud_path(drive, parent_folder['id'], path)
         else:
             return path
@@ -93,13 +99,34 @@ def get_local_path(drive, instance_id, sync_dir):
             :param instance_id: id of file or folder
             :param sync_dir: default sync directory
 
-            :returns: corresponding canonical path of instance locally resp
+            :returns: corresponding canonical path of instance locally
     """
     rel_path = []
     get_cloud_path(drive, instance_id, rel_path)
+    # print(rel_path)
+    check = False
     for p in rel_path:
-        sync_dir = os.path.join(sync_dir, p)
-    dir_exists(sync_dir)
+        for file in os.listdir(sync_dir):
+            # print(file)
+            try:
+                if os.getxattr(os.path.join(sync_dir, file), 'user.id').decode() == p['id']:
+                    # print(123)
+                    check = True
+                    sync_dir = os.path.join(sync_dir, file)
+                    # print(sync_dir)
+            except:
+                continue
+        if not check:
+            # print(456)
+            if os.path.exists(os.path.join(sync_dir, p['name'])):
+                sync_dir = get_name_folder(sync_dir, p['name'])
+            else:
+                sync_dir = os.path.join(sync_dir, p['name'])
+            dir_exists(sync_dir)
+            os.setxattr(sync_dir, 'user.id', str.encode(p['id']))
+
+    # dir_exists(sync_dir)
+    # print(sync_dir)
     return sync_dir
 
 
@@ -134,3 +161,46 @@ def check_option(option, char, length):
     if len(option) == length and char in option:
         return True
     return False
+
+
+def get_name_folder(folder, name):
+    if os.path.exists(os.path.join(folder, name)):
+        tokens = name.split('_')
+        try:
+            no_copy = int(tokens[-1])
+            ver = no_copy + 1
+            _name = ""
+            for i in range(len(tokens)-1):
+                _name += tokens[i]
+            name = _name
+            res = os.path.join(folder, name + "_" + str(ver))
+            if os.path.exists(res):
+                return get_name_folder(folder, name + "_" + str(ver))
+            else:
+                return res
+        except:
+            result = os.path.join(folder, name + "_1")
+            if os.path.exists(result):
+                return get_name_folder(folder, name + "_1")
+            else:
+                return result
+    else:
+        return os.path.join(folder, name)
+
+
+def get_list_local_id(folder):
+    ids = []
+    if os.path.exists(folder):
+        for file in os.listdir(folder):
+            try:
+                instance_id = os.getxattr(os.path.join(folder, file), 'user.id')
+                ids.append(instance_id.decode())
+            except:
+                continue
+    return ids
+
+
+def utc2local(utc):
+    epoch = time.mktime(utc.timetuple())
+    offset = datetime.fromtimestamp(epoch) - datetime.utcfromtimestamp(epoch)
+    return utc + offset
