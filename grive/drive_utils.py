@@ -5,6 +5,7 @@ import sys
 import shutil
 import pyperclip
 import hashlib
+
 from datetime import datetime
 from pydrive import files
 
@@ -387,7 +388,8 @@ def is_valid_id(drive, file_id):
 
 
 def is_trash(drive, file_id):
-    for f in drive.ListFile({'q': "'root' in parents and trashed=true"}).GetList():
+    # for f in drive.ListFile({'q': "'root' in parents and trashed=true"}).GetList():
+    for f in drive.ListFile({'q': "trashed=true"}).GetList():
         if file_id == f['id']:
             return True
     return False
@@ -420,13 +422,15 @@ def f_list_local(folder, recursive):
                 'canonicalPath': file,
                 'modifiedDate': stats.st_mtime,
                 'md5Checksum': hashlib.md5(open(file, 'rb').read()).hexdigest(),
-                'excludeUpload': False
+                'excludeUpload': False,
+                'fileSize': stats.st_size
             }
             dicts.append(result)
         return dicts
     else:
         # for file in os.listdir(folder):
         for file in os.scandir(folder):
+            # print(file)
             stats = os.stat(file.path)
 
             try:
@@ -441,7 +445,10 @@ def f_list_local(folder, recursive):
                 'canonicalPath': file,
                 'modifiedDate': stats.st_mtime,
                 'md5Checksum': hashlib.md5(open(file.path, 'rb').read()).hexdigest() if file.is_file() else None,
-                'excludeUpload': False
+                'excludeUpload': False,
+                'fileSize': stats.st_size,
+                'typeShow': None,
+                'type': 'folder' if file.is_dir() else 'file'
             }
             dicts.append(result)
         return dicts
@@ -476,7 +483,10 @@ def f_list(drive, keyword, recursive):
                 'title': file['title'],
                 'modifiedDate': datetime.timestamp(datetime.strptime(file['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')),
                 'parents': file['parents'],
-                'md5Checksum': file.get('md5Checksum')
+                'md5Checksum': file.get('md5Checksum'),
+                'type': file['mimeType'],
+                'fileSize': file.get('fileSize') if file.get('fileSize') else '',
+                'isFolder': 'folder' if file['mimeType'] == 'application/vnd.google-apps.folder' else 'file'
             }
             dicts.append(result)
 
@@ -484,25 +494,101 @@ def f_list(drive, keyword, recursive):
 
     # lists all files and folder inside given folder
     else:
+        file_list = []
         if keyword == "all":
-            file_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
-            for f in file_list:
-                print('title: %s, id: %s' % (f['title'], f['id']))
+            for f in drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList():
+                file_list.append(f)
 
         # lists all files and folders inside trash
         elif keyword == "trash":
-            file_list = drive.ListFile({'q': "'root' in parents and trashed=true"}).GetList()
-            for f in file_list:
-                print('title: %s, id: %s' % (f['title'], f['id']))
+            for f in drive.ListFile({'q': "trashed=true"}).GetList(): # nhu cu la: 'q': "'root' in parents and trashed=true"
+                file_list.append(f)
 
         # lists all files and folders inside folder given as argument in keyword
         else:
             q_string = "'%s' in parents and trashed=false" % keyword
-            file_list = drive.ListFile({'q': q_string}).GetList()
-            # for f in file_list:
-            #     print('title: %s, id: %s' % (f['title'], f['id']))
-            return file_list
+            for f in drive.ListFile({'q': q_string}).GetList():
+                file_list.append(f)
+
+        dicts = []
+        for file in file_list:
+            result = {
+                'storageLocation': 'remote',
+                'id': file['id'],
+                'alternateLink': file['alternateLink'],
+                'title': file['title'],
+                'modifiedDate': datetime.timestamp(datetime.strptime(file['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')),
+                'parents': file['parents'],
+                'md5Checksum': file.get('md5Checksum'),
+                'type': file['mimeType'],
+                'fileSize': file.get('fileSize') if file.get('fileSize') else '',
+                'typeShow': None,
+                'isFolder': 'folder' if file['mimeType'] == 'application/vnd.google-apps.folder' else 'file'
+            }
+            dicts.append(result)
+
+        return dicts
 
 
 def f_open(folder):
     os.system('xdg-open "%s"' % config_utils.get_dir_sync_location())
+
+
+def check_remote_dir_files_sync(drive,remote_folder_id, local_folder):
+    remote_dir_files_list = f_list(drive, remote_folder_id, True)
+    local_dir_files_list = f_list_local(local_folder,True)
+
+    if(len(remote_dir_files_list) != len(local_dir_files_list)):
+        return False
+    else:
+        count = 0
+        for remote_file in remote_dir_files_list:
+            for local_file in local_dir_files_list:
+                if remote_file['title'] == local_file['title']:
+                    if remote_file['md5Checksum']:
+                        if remote_file['md5Checksum'] == local_file['md5Checksum']:
+                            count+=1
+                            break
+                    elif remote_file['fileSize'] == remote_file['fileSize']:
+                        count+=1
+                        break
+        if count == len(remote_dir_files_list):
+            return True
+        else:
+            return False
+
+
+def f_calculateUsageOfFolder(drive):
+    driveAudioUsage = 0
+    drivePhotoUsage = 0
+    driveMoviesUsage = 0
+    driveDocumentUsage = 0
+    driveOthersUsage = 0
+
+    file_list = f_list(drive, 'root', True)
+    for file in file_list:
+        if common_utils.isAudioFile(file):
+            driveAudioUsage += common_utils.getFileSize(file)
+        elif  common_utils.isImageFile(file):
+            drivePhotoUsage += common_utils.getFileSize(file)
+        elif common_utils.isVideoFile(file):
+            driveMoviesUsage += common_utils.getFileSize(file)
+        elif common_utils.isDocument(file):
+            driveDocumentUsage += common_utils.getFileSize(file)
+        else:
+            driveOthersUsage += common_utils.getFileSize(file)
+    return driveAudioUsage, drivePhotoUsage, driveMoviesUsage, driveDocumentUsage, driveOthersUsage
+
+
+# def convertToKBFileSize(size):
+#     if(size!=''):
+#         return round((float(size)/1024), 3)
+#     else:
+#         return size
+
+# def convertToMBFileSize(size):
+#     if(size!=''):
+#         return round((float(size)/1048576), 3)
+#     else:
+#         return size
+

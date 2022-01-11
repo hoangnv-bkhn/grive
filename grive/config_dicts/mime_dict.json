@@ -3,5 +3,10 @@
   "application/vnd.google-apps.form": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "application/vnd.google-apps.document": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.google-apps.presentation": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "folder": "application/vnd.google-apps.folder"
+  "folder": "application/vnd.google-apps.folder",
+  "audio_file_mimelist" : "['audio/mpeg', 'audio/x-mpeg-3', 'audio/mpeg3', 'audio/aiff', 'audio/x-aiff', 'audio/m4a', 'audio/mp4', 'audio/flac', 'audio/mp3']",
+  "movie_file_mimelist" : "['video/mp4', 'video/x-msvideo', 'video/mpeg', 'video/flv', 'video/quicktime', 'video/mkv']",
+  "image_file_mimelist" : "['image/png', 'image/jpeg', 'image/jpg', 'image/tiff']",
+  "document_file_mimelist" : "['application/powerpoint', 'applciation/mspowerpoint','application/x-mspowerpoint', 'application/pdf','application/x-dvi','application/vnd.ms-htmlhelp','application/x-mobipocket-ebook','application/vnd.ms-publisher']",
+  "google_docs_re" : "application/vnd.google-apps"
 }
