@@ -189,7 +189,8 @@ def main():
                                 if remote_file['fileSize']  == local_file['fileSize']:
                                     remote_file['typeShow'] = "dongbo"
                         break
-                if remote_file['typeShow'] == None: remote_file['typeShow'] = "dammay"
+                if remote_file['typeShow'] is None:
+                    remote_file['typeShow'] = "dammay"
 
             result=[]
             for local_file in local_files_list:
@@ -197,9 +198,9 @@ def main():
                     isHave = False
                     if remote_file['title'] == local_file['title']:
                         if remote_file['isFolder'] == local_file['type']:
-                            isHave= True
+                            isHave = True
                             break
-                if not isHave :
+                if not isHave:
                     local_file['typeShow']='maytinh'
                     result.append(local_file)
 
@@ -237,11 +238,10 @@ def main():
 
         elif arguments[arg_index] == "-ls_trash" or arguments[arg_index] == "-lt" or arguments[arg_index] == "ls_trash":
             trash_files_list = drive_utils.f_list(drive, "trash", 0)
-            print('%-30s | %50s | %30s | %10s'  % ('Name', 'id', 'Date Modified', 'Size'))
+            print('%-30s | %50s | %30s | %10s' % ('Name', 'id', 'Date Modified', 'Size'))
             # print('---------------------------------------------------------------------------------------------------------------------------')
             for file in trash_files_list:
                 print('%-30s | %50s | %30s | %10s' % (file['title'], file['id'], datetime.utcfromtimestamp(file['modifiedDate']), file['fileSize']))
-
 
         elif arguments[arg_index] == "-ls_folder" or arguments[arg_index] == "-lf" or \
                 arguments[arg_index] == "ls_folder":

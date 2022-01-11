@@ -32,7 +32,8 @@ setup(
         'pydrive',
         'python-crontab',
         'future',
-        'pyperclip'
+        'pyperclip',
+        'prettytable'
       ],
     dependency_links=[],
     entry_points={

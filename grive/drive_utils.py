@@ -83,19 +83,23 @@ def f_down(drive, option, file_id, save_folder):
                 folder_local_name = elem['title']
 
         folder_path = os.path.join(save_folder, folder_local_name)
+        flag = True
         if has_in_local:
             if overwrite:
                 if os.path.isdir(folder_path):
+                    print(folder_path)
                     shutil.rmtree(folder_path)
                     print("Recreating folder %s in %s" % (folder_remote_name, save_folder))
-                    common_utils.dir_exists(folder_path)
-                    f_all(drive, folder_remote_id, None, True, folder_path, option)
             else:
+                flag = False
                 print("Folder '%s' already present in %s" % (d_file['title'], save_folder))
         else:
             print("Creating folder %s in %s" % (folder_remote_name, save_folder))
-            common_utils.dir_exists(os.path.join(save_folder, d_file['title']))
-            f_all(drive, d_file['id'], None, True, folder_path, option)
+
+        if flag:
+            common_utils.dir_exists(folder_path)
+            os.setxattr(folder_path, 'user.id', str.encode(folder_remote_id))
+            f_all(drive, folder_remote_id, None, True, folder_path, option)
 
     # for online file types like Gg Docs, Gg Sheet..etc
     elif d_file['mimeType'] in mime_swap:
