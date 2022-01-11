@@ -3,6 +3,7 @@ from pkg_resources import resource_filename
 import os
 import ntpath
 import errno
+import re
 from pydrive import settings
 
 import pwd
@@ -134,3 +135,49 @@ def check_option(option, char, length):
     if len(option) == length and char in option:
         return True
     return False
+
+def sizeof_fmt(num, suffix='B'):
+        if num=="": return num
+        for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
+            if abs(num) < 1024.0:
+                return '{:.1f} {}{}'.format(num, unit, suffix)
+            num /= 1024.0
+        return '{:.1f} {}{}'.format(num, 'Yi', suffix)
+    
+def renderTypeShow(type):
+    switcher= {
+        'dammay': u'\u2601',
+        'maytinh': u'\U0001F4BB',
+        'dongbo':  u'\u2705',
+        'notdongbo': u'\U0001F501'
+    }
+    return switcher.get(type,'error')
+
+def isAudioFile(file): 
+    if re.compile('audio', re.IGNORECASE).search(file['type']): 
+        return True
+    else: 
+        return False
+
+def isImageFile(file): 
+    if re.compile('image', re.IGNORECASE).search(file['type']): 
+        return True
+    else: 
+        return False
+
+def isVideoFile(file): 
+    if re.compile('video', re.IGNORECASE).search(file['type']): 
+        return True
+    else: 
+        return False
+
+def isDocument(file): 
+    if re.compile('document', re.IGNORECASE).search(file['type']): 
+        return True
+    else: 
+        return False
+
+def getFileSize(file):
+    if file['fileSize']=="": return ""
+    size = file['fileSize']
+    return int(size)
