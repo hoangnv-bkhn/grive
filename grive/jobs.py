@@ -85,29 +85,73 @@ def by_cron(drive, file_id=None):
     # stores if the file is being uploaded
     uploading = {}
 
-    # remote_files = drive_utils.f_list(drive, "root", 1)
+    remote_files = drive_utils.f_list(drive, "root", 1)
     # print(remote_files[0]['modifiedDate'])
 
     # datetime.timestamp(datetime.strptime(file['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ'))
 
     subfolders, local_files = common_utils.run_fast_scandir(config_utils.get_dir_sync_location())
 
-    if os.path.exists(common_utils.config_folder):
-        path = os.path.join(common_utils.config_folder, "metadata_file.json")
-        with open(path, 'w') as metadata_file:
-            dicts = []
-            # for file in remote_files:
-            #     dict = {
-            #         'storageLocation': 'remote',
-            #         'id': file['id'],
-            #         'alternateLink': file['alternateLink'],
-            #         'title': file['title'],
-            #         'modifiedDate': datetime.timestamp(datetime.strptime(file['modifiedDate'],
-            #         '%Y-%m-%dT%H:%M:%S.%fZ')),
-            #         'parents': file['parents'],
-            #         'md5Checksum': file.get('md5Checksum')
-            #     }
-            #     dicts.append(dict)
+    dicts = []
+    for file in remote_files:
+        res = {
+            'storageLocation': 'remote',
+            'id': file['id'],
+            'alternateLink': file['alternateLink'],
+            'title': file['title'],
+            'modifiedDate': common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])),
+            'parents': file['parents'],
+            'md5Checksum': file.get('md5Checksum')
+        }
+        dicts.append(res)
+    for file in dicts:
+        if file['title'] == 'data':
+            print(file['id'], file['title'], file.get('md5Checksum'), file['modifiedDate'])
+
+    dicts2 = []
+    # datetime.utcfromtimestamp(stats.st_mtime)
+    for file in local_files:
+        # print(file)
+        stats = os.stat(file)
+        # print(stats)
+        res = {
+            'storageLocation': 'local',
+            'title': common_utils.get_file_name(file),
+            'canonicalPath': file,
+            'modifiedDate': datetime.fromtimestamp(stats.st_mtime),
+            'accessedDate': datetime.fromtimestamp(stats.st_atime),
+            'changedDate': datetime.fromtimestamp(stats.st_ctime),
+            'md5Checksum': hashlib.md5(open(file, 'rb').read()).hexdigest(),
+            'excludeUpload': 'false'
+        }
+        dicts2.append(res)
+    for file in dicts2:
+        if file['title'] == 'data':
+            print('title', file['title'])
+            print('Checksum', file.get('md5Checksum'))
+            print("modified: ", file['modifiedDate'])
+            print("access: ", file['accessedDate'])
+            print("changed: ", file['changedDate'])
+
+
+
+    # if os.path.exists(common_utils.config_folder):
+    #     path = os.path.join(common_utils.config_folder, "metadata_file.json")
+    #     with open(path, 'w') as metadata_file:
+    #         dicts = []
+    #         for file in remote_files:
+    #             dict = {
+    #                 'storageLocation': 'remote',
+    #                 'id': file['id'],
+    #                 'alternateLink': file['alternateLink'],
+    #                 'title': file['title'],
+    #                 'modifiedDate': datetime.timestamp(datetime.strptime(file['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')),
+    #                 'parents': file['parents'],
+    #                 'md5Checksum': file.get('md5Checksum')
+    #             }
+    #             dicts.append(dict)
+    #         for file in dicts:
+    #             print(file['title'], file.get('md5Checksum'), file['modifiedDate'])
 
             # datetime.utcfromtimestamp(stats.st_mtime)
             # for file in local_files:
@@ -123,7 +167,7 @@ def by_cron(drive, file_id=None):
             #     }
             #     dicts.append(dict)
 
-            json.dump(dicts, metadata_file, default=str)
+            # json.dump(dicts, metadata_file, default=str)
 
 
 
