@@ -5,6 +5,7 @@ import sys
 import shutil
 import pyperclip
 import hashlib
+import re
 
 from datetime import datetime
 from pydrive import files
@@ -412,7 +413,6 @@ def f_list_local(folder, recursive):
     if recursive:
         subfolders, local_files = common_utils.run_fast_scandir(folder)
         for file in local_files:
-            # print(file)
             stats = os.stat(file)
             try:
                 instance_id = os.getxattr(os.path.join(folder, file), 'user.id').decode()
@@ -427,7 +427,8 @@ def f_list_local(folder, recursive):
                 'modifiedDate': stats.st_mtime,
                 'md5Checksum': hashlib.md5(open(file, 'rb').read()).hexdigest(),
                 'excludeUpload': False,
-                'fileSize': stats.st_size
+                'fileSize': stats.st_size,
+                'typeShow': None
             }
             dicts.append(result)
         return dicts
@@ -460,7 +461,6 @@ def f_list_local(folder, recursive):
 
 # Operations for file list commands
 def f_list(drive, keyword, recursive):
-
     # get recursively all files in the folder
     if recursive:
         file_list = []
@@ -473,10 +473,8 @@ def f_list(drive, keyword, recursive):
                 else:
                     file_list.append(f)
         else:
-            f_all(drive, keyword, file_list, False, None, None)
-
-        # for f in file_list:
-        #     print('title: %s, id: %s' % (f['title'], f['id']))
+            if is_valid_id(drive ,keyword):
+                f_all(drive, keyword, file_list, False, None, None)
 
         dicts = []
         for file in file_list:
@@ -490,7 +488,8 @@ def f_list(drive, keyword, recursive):
                 'md5Checksum': file.get('md5Checksum'),
                 'type': file['mimeType'],
                 'fileSize': file.get('fileSize') if file.get('fileSize') else '',
-                'isFolder': 'folder' if file['mimeType'] == 'application/vnd.google-apps.folder' else 'file'
+                'isFolder': 'folder' if file['mimeType'] == 'application/vnd.google-apps.folder' else 'file',
+                'typeShow': None,
             }
             dicts.append(result)
 
@@ -499,7 +498,8 @@ def f_list(drive, keyword, recursive):
     # lists all files and folder inside given folder
     else:
         file_list = []
-        if keyword == "all":
+        # if keyword == "all":
+        if keyword == "root":
             for f in drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList():
                 file_list.append(f)
 
@@ -510,9 +510,10 @@ def f_list(drive, keyword, recursive):
 
         # lists all files and folders inside folder given as argument in keyword
         else:
-            q_string = "'%s' in parents and trashed=false" % keyword
-            for f in drive.ListFile({'q': q_string}).GetList():
-                file_list.append(f)
+            if is_valid_id(drive,keyword):
+                q_string = "'%s' in parents and trashed=false" % keyword
+                for f in drive.ListFile({'q': q_string}).GetList():
+                    file_list.append(f)
 
         dicts = []
         for file in file_list:
@@ -561,6 +562,57 @@ def check_remote_dir_files_sync(drive,remote_folder_id, local_folder):
         else:
             return False
 
+def compare_and_change_type_show(drive,remote_files_list, local_files_list): 
+    for remote_file in remote_files_list:
+        for local_file in local_files_list:
+            if remote_file['id'] == local_file['id']:
+                if re.compile('folder', re.IGNORECASE).search(remote_file['type']):
+                    if check_remote_dir_files_sync(drive,remote_file['id'],local_file['canonicalPath']):
+                        remote_file['typeShow'] = "dongbo"
+                    else:
+                        remote_file['typeShow'] = "notdongbo"
+                else:
+                    if remote_file['md5Checksum']:
+                        if remote_file['md5Checksum']  == local_file['md5Checksum']:
+                            remote_file['typeShow'] = "dongbo"
+                        else:
+                            remote_file['typeShow'] = "notdongbo"
+                    else:
+                        if remote_file['fileSize']  == local_file['fileSize']:
+                            remote_file['typeShow'] = "dongbo"
+                break
+        if remote_file['typeShow'] == None: remote_file['typeShow'] = "dammay"
+
+def compare_and_change_type_show_local(drive,local_files_list,remote_files_list): 
+    for local_file in local_files_list:
+        for remote_file in remote_files_list:
+            if local_file['id'] == remote_file['id']:
+                if 'type' in local_file:
+                    if re.compile('folder', re.IGNORECASE).search(local_file['type']):
+                        if check_remote_dir_files_sync(drive,local_file['id'],remote_file['canonicalPath']):
+                            local_file['typeShow'] = "dongbo"
+                        else:
+                            local_file['typeShow'] = "notdongbo"
+                else:
+                    if local_file['md5Checksum']:
+                        if local_file['md5Checksum']  == remote_file['md5Checksum']:
+                            local_file['typeShow'] = "dongbo"
+                        else:
+                            local_file['typeShow'] = "notdongbo"
+                    else:
+                        if local_file['fileSize']  == remote_file['fileSize']:
+                            local_file['typeShow'] = "dongbo"
+                break
+        if local_file['typeShow'] == None: local_file['typeShow'] = "maytinh"
+
+
+def filter_none_id(local_files_list): 
+    result = []
+    for local_file in local_files_list:
+        if not local_file['id']:
+            local_file['typeShow'] = 'maytinh'
+            result.append(local_file)
+    return result
 
 def f_calculateUsageOfFolder(drive):
     driveAudioUsage = 0
@@ -584,15 +636,4 @@ def f_calculateUsageOfFolder(drive):
     return driveAudioUsage, drivePhotoUsage, driveMoviesUsage, driveDocumentUsage, driveOthersUsage
 
 
-# def convertToKBFileSize(size):
-#     if(size!=''):
-#         return round((float(size)/1024), 3)
-#     else:
-#         return size
-
-# def convertToMBFileSize(size):
-#     if(size!=''):
-#         return round((float(size)/1048576), 3)
-#     else:
-#         return size
 

@@ -209,7 +209,6 @@ def getFileSize(file):
     size = file['fileSize']
     return int(size)
 
-
 def get_name_folder(folder, name):
     if os.path.exists(os.path.join(folder, name)):
         tokens = name.split('_')
@@ -234,7 +233,6 @@ def get_name_folder(folder, name):
     else:
         return os.path.join(folder, name)
 
-
 def get_list_local_id(folder):
     ids = []
     if os.path.exists(folder):
@@ -245,7 +243,6 @@ def get_list_local_id(folder):
             except:
                 continue
     return ids
-
 
 def utc2local(utc):
     epoch = time.mktime(utc.timetuple())
