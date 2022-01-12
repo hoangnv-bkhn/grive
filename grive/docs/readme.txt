@@ -54,7 +54,9 @@
                     Don't specify [folder]  : Save at the corresponding location on remote
                     Specify [folder]        : Save at the specified folder
 
-            * -upload [file_name] : Upload file/folder corresponding to the address given to Google Drive, for one time.
+            * -u [file_name/folder_name] : Upload file/folder corresponding to the root given to Google Drive, for one time.
+                -uf: Upload file/folder corresponding to the address given to Google Drive, for one time.
+                -ufo: Upload file/folder corresponding to the address given to Google Drive and overwrite mode.
 
             * -sync : Sync specified folder to Google drive
 
@@ -68,10 +70,11 @@
 
             * -restore [file_id] : Restore files from trash.
 
-            * -remove [local/remote] [file_name/folder_name/file_id/folder_id]
-                Delete the mentioned file from Google Drive sync directory or Google Drive remote.
-                Please input file_id/folder_id if it's a remote file.
-                You can add multiple file_ids/folder_ids one after the other, e.g. -remove remote [file_id1] [file_id2]
+            * -rm [file_id/folder_id]
+                Delete the mentioned file from Google Drive sync directory and Google Drive remote.
+                You can add multiple file_ids/folder_ids one after the other, e.g. -rm [file_id1] [file_id2]
+                -rml [file_name/folder_name] : Delete the mentioned file from Google Drive sync directory
+                -rmr [file_id/folder_id] : Delete the mentioned file from Google Drive remote
 
             * -open, -o  :  Opens the Sync Directory in file explorer
 

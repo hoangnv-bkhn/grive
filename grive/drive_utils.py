@@ -160,108 +160,207 @@ def f_down(drive, option, file_id, save_folder):
             os.setxattr(os.path.join(save_folder, file_remote_name), 'user.id', str.encode(file_remote_id))
 
 
-def f_create(drive, addr, fold_id, rel_addr, show_update):
+def f_create(drive, addr, fold_id, rel_addr, listF, overwrite, isSync, show_update):
     # Check whether address is right or not
     if not os.path.exists(addr):
         print("Specified file/folder doesn't exist, check the address!")
         return
 
+    if isSync is True and overwrite is False and listF is None:
+        listF = f_list(drive, "root", True)
+
     # creating if it's a folder
     if os.path.isdir(addr):
+        sync_dir = config_utils.get_dir_sync_location()
         # print progress
         if show_update:
             print("creating folder " + rel_addr)
-        # if folder to be added to root
-        if fold_id is None:
+        check_id = False
+        if os.path.join(addr) == os.path.join(sync_dir) and fold_id is None and isSync is True:
             folder = drive.CreateFile()
-        # if folder to be added to some other folder
-        else:
-            folder = drive.CreateFile({"parents": [{"kind": "drive#fileLink", "id": fold_id}]})
+            folder['id'] = None
+            check_id = True
+        if isSync is True and check_id is False and overwrite is False:
+            try:
+                check_id = True
+                fold_id = os.getxattr(addr, 'user.id')
+                fold_id = fold_id.decode()
+                folder = drive.CreateFile({'id': fold_id})
+            except:
+                check_id = False
+        if check_id is False:
+            # if folder to be added to root
+            if fold_id is None:
+                folder = drive.CreateFile()
+            # if folder to be added to some other folder
+            else:
+                folder = drive.CreateFile({"parents": [{"kind": "drive#fileLink", "id": fold_id}]})
 
-        folder['title'] = common_utils.get_file_name(addr)  # sets folder title
-        folder['mimeType'] = 'application/vnd.google-apps.folder'  # assigns it as GDrive folder
-        folder.Upload()
+            folder['title'] = common_utils.get_file_name(addr)  # sets folder title
+            folder['mimeType'] = 'application/vnd.google-apps.folder'  # assigns it as GDrive folder
+            folder.Upload()
+            if isSync is True or overwrite is True:
+                os.setxattr(addr, 'user.id', str.encode(folder['id']))
 
         # Traversing inside files/folders
         for item in os.listdir(addr):
             f_create(drive, os.path.join(addr, item), folder['id'], rel_addr + "/" +
-                     str(common_utils.get_file_name(os.path.join(addr, item))), show_update)
+                     str(common_utils.get_file_name(os.path.join(addr, item))), listF, overwrite, isSync, show_update)
 
     # creating file
     else:
         # print progress
         if show_update:
             print("uploading file " + rel_addr)
-        # if file is to be added to root
-        if fold_id is None:
-            up_file = drive.CreateFile()
-        # if file to be added to some folder in drive
-        else:
-            up_file = drive.CreateFile({"parents": [{"kind": "drive#fileLink", "id": fold_id}]})
+        check_id = False
+        checkModified = False
+        stats = os.stat(addr)
+        if isSync is True and overwrite is False:
+            try:
+                check_id = True
+                file_id = os.getxattr(addr, 'user.id')
+                file_id = file_id.decode()
+                for x in listF:
+                    if x['id'] == file_id:
+                        if x['modifiedDate'] != datetime.utcfromtimestamp(stats.st_mtime).timestamp():
+                            checkModified = True
+                        break
+                up_file = drive.CreateFile({'id': file_id})
+            except:
+                check_id = False
+        if check_id is False:
+            # if file is to be added to root
+            if fold_id is None:
+                up_file = drive.CreateFile()
+            # if file to be added to some folder in drive
+            else:
+                up_file = drive.CreateFile({"parents": [{"kind": "drive#fileLink", "id": fold_id}]})
 
-        up_file.SetContentFile(addr)
-        up_file['title'] = common_utils.get_file_name(addr)  # sets file title to original
-        up_file.Upload()
+        if checkModified is True or check_id is False:
+            up_file.SetContentFile(addr)
+            up_file['title'] = common_utils.get_file_name(addr)  # sets file title to original
+            up_file.Upload()
+            os.utime(addr, (stats.st_atime, common_utils.utc2local(datetime.strptime(up_file['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
+            if isSync is True or overwrite is True:
+                if check_id is False or overwrite is True:
+                    os.setxattr(addr, 'user.id', str.encode(up_file['id']))
 
     return True
 
-
-def f_up(drive, addr, fold_id):
-    # checks if the specified file/folder exists
-    if not os.path.exists(addr):
-        print("Specified file/folder doesn't exist, please remove from upload list using -config")
-        return
-
-    # pass the address to f_create and on success delete/move file/folder
-    if f_create(drive, addr, fold_id, str(common_utils.get_file_name(addr)), True):
-        # remove file if Remove_Post_Upload is true, otherwise move to GDrive downloads
-        # remove_post_upload = config_utils.read_config()['Remove_Post_Upload']
-        remove_post_upload = False
-        if remove_post_upload:
-            # use recursive removal if directory
-            if os.path.isdir(addr):
-                shutil.rmtree(addr)
-            # normal os removal for file
-            else:
-                os.remove(addr)
-        # else:
-        #     shutil.move(addr, config_utils.get_dir_sync_location())
-    else:
-        print("Upload unsuccessful, please try again!")
-
-
-def f_sync(drive):
-
-    file_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
-
-    dir_folder = config_utils.get_dir_sync_location()
-
-    for f in os.listdir(dir_folder):
-
-        check = False
-
-        dir_file = dir_folder + "/" + f
-        rel_addr = common_utils.get_file_name(dir_file)
-
-        for f_sub in file_list:
-            if((f == f_sub['title']) and (f_sub.get('md5Checksum') is not None)):
-                check = True
-                md5checksum = hashlib.md5(open(dir_file, 'rb').read()).hexdigest()
-                if(md5checksum != f_sub.get('md5Checksum')):
-                    up_file = drive.CreateFile({'id': f_sub['id'], 'title': f_sub['title']})
-                    up_file.SetContentFile(dir_file)
-                    print("Modified file " + rel_addr)
-                    up_file.Upload()
+def f_up(drive, fold_id, addrs, overwrite):
+    sync_dir = config_utils.get_dir_sync_location()
+    for addr in addrs:
+        # checks if the specified file/folder exists
+        if not os.path.exists(addr):
+            print("Specified file/folder doesn't exist, please remove from upload list using -config")
+            return
+        f_local_name = str(common_utils.get_file_name(addr))
+        if sync_dir not in addr or fold_id is not None or os.path.join(addr) == os.path.join(sync_dir):
+            # pass the address to f_create and on success delete/move file/folder
+            if f_create(drive, addr, fold_id, f_local_name, None, False, False, True) is False:
+                print("Upload unsuccessful, please try again!")
+            continue
+        try:
+            f_id = os.getxattr(addr, 'user.id')
+            f_id = f_id.decode()
+            if overwrite is True:
+                if os.path.isdir(addr):
+                    print("Uploading...")
+                    folder = drive.CreateFile({'id': f_id})
+                    folder.Trash()
+                    fold_id = folder['parents'][0]['id']
+                    if f_create(drive, addr, fold_id, f_local_name, None, True, False, False) is False:
+                        print("Upload unsuccessful, please try again!")
+                else:
+                    print("Uploading...")
+                    up_file = drive.CreateFile({'id': f_id})
+                    up_file.Trash()
+                    fold_id = up_file['parents'][0]['id']
+                    if f_create(drive, addr, fold_id, f_local_name, None, True, False, False) is False:
+                        print("Upload unsuccessful, please try again!")
+        except:
+            fold_addr = os.path.dirname(addr)
+            fold_name = []
+            while fold_addr:
+                try:
+                    if os.path.join(fold_addr) == os.path.join(sync_dir):
+                        if (len(fold_name) > 0):
+                            fold_name.reverse()
+                            i = 0
+                            folder_addr = sync_dir
+                            for x in fold_name:
+                                if i == 0:
+                                    folder = drive.CreateFile()
+                                else:
+                                    folder = drive.CreateFile({"parents": [{"kind": "drive#fileLink", "id": folder['id']}]})
+                                folder['title'] = x  # sets folder title
+                                folder['mimeType'] = 'application/vnd.google-apps.folder'  # assigns it as GDrive folder
+                                folder.Upload()
+                                folder_addr = os.path.join(folder_addr, x)
+                                os.setxattr(folder_addr, 'user.id', str.encode(folder['id']))
+                                i += 1
+                            print("Uploading...")
+                            if f_create(drive, addr, folder['id'], f_local_name, None, True, True, False) is False:
+                                print("Upload unsuccessful, please try again!")
+                        else:
+                            print("Uploading...")
+                            if f_create(drive, addr, None, f_local_name, None, True, True, False) is False:
+                                print("Upload unsuccessful, please try again!")
+                        break
+                    folder_id = os.getxattr(fold_addr, 'user.id')
+                    folder_id = folder_id.decode()
+                    if (len(fold_name) > 0):
+                        fold_name.reverse()
+                        folder = None
+                        folder_addr = fold_addr
+                        i = 0
+                        for x in fold_name:
+                            folder_addr = os.path.join(folder_addr, x)
+                            if i == 0:
+                                folder = drive.CreateFile({"parents": [{"kind": "drive#fileLink", "id": folder_id}]})
+                            else:
+                                folder = drive.CreateFile({"parents": [{"kind": "drive#fileLink", "id": folder['id']}]})
+                            folder['title'] = x  # sets folder title
+                            folder['mimeType'] = 'application/vnd.google-apps.folder'  # assigns it as GDrive folder
+                            folder.Upload()
+                            os.setxattr(folder_addr, 'user.id', str.encode(folder['id']))
+                            i += 1
+                        print("Uploading...")
+                        if f_create(drive, addr, folder['id'], f_local_name, None, True, True, False) is False:
+                            print("Upload unsuccessful, please try again!")
+                    else:
+                        print("Uploading...")
+                        if f_create(drive, addr, folder_id, f_local_name, None, True, True, False) is False:
+                            print("Upload unsuccessful, please try again!")
                     break
+                except:
+                    fold_name.append(str(common_utils.get_file_name(fold_addr)))
+                    fold_addr = os.path.dirname(fold_addr)
 
-        if (check is False):
-            up_file = drive.CreateFile()
-            up_file.SetContentFile(dir_file)
-            up_file['title'] = rel_addr
-            print("uploading file " + rel_addr)
-            up_file.Upload()
 
-    return
+def f_sync(drive, addr):
+    sync_dir = config_utils.get_dir_sync_location()
+    if sync_dir not in addr:
+        return False
+    # listF = f_list(addr, "root", False)
+    if os.path.join(addr) != os.path.join(sync_dir):
+        try:
+            fold_id = os.getxattr(addr, 'user.id')
+            fold_id = fold_id.decode()
+        except:
+            addrs = []
+            addrs.append(addr)
+            f_up(drive, None, addrs, False)
+            return True
+    else:
+        # fold_id = listF[0]['parents']['id']
+        fold_id = None
+    # f_down(drive, "-d", fold_id, addr)
+    print("Sync...")
+    if f_create(drive, addr, fold_id, str(common_utils.get_file_name(addr)), None, False, True, False) is False:
+        print("Sync unsuccessful, please try again!")
+
+    return True
 
 
 def share_link(drive, option, file_id, mail):
@@ -326,8 +425,8 @@ def share_link(drive, option, file_id, mail):
         print(mess)
 
 
-def file_remove(drive, mode, addrs):
-    print(addrs)
+def f_remove(drive, mode, addrs):
+    # print(addrs)
     if mode == "local":
         sync_dir = config_utils.get_dir_sync_location()
         # Appending file/folder name to download directory
@@ -358,6 +457,41 @@ def file_remove(drive, mode, addrs):
                 else:
                     r_file.Trash()
                     print("%s moved to GDrive trash. List files in trash by -lt parameter" % f_name)
+
+    elif mode == "all":
+        sync_dir = config_utils.get_dir_sync_location()
+        for addr in addrs:
+            # check if file_id valid
+            if is_valid_id(drive, addr):
+                # file to be removed
+                r_file = drive.CreateFile({'id': addr})
+                f_name = r_file['title']
+                f_parent = r_file['parents'][0]
+                folder_name = []
+                while f_parent['isRoot'] is False:
+                    folder = drive.CreateFile({'id': f_parent['id']})
+                    folder_name.append(folder['title'])
+                    f_parent = folder['parents'][0]
+                if (len(folder_name) > 0):
+                    folder_name.reverse()
+                    f_path = os.path.join(sync_dir)
+                    for x in folder_name:
+                        f_path = os.path.join(f_path, x)
+                    f_path = os.path.join(f_path, f_name)
+                    if os.path.exists(f_path):
+                        if os.path.isdir(f_path):
+                            shutil.rmtree(f_path)
+                        else:
+                            os.remove(f_path)
+                # delete permanently if in trash
+                if is_trash(drive, r_file['id']):
+                    r_file.Delete()
+                    print("%s deleted permanently" % f_name)
+                # move to trash
+                else:
+                    r_file.Trash()
+                    print("%s moved to GDrive trash. List files in trash by -lt parameter" % f_name)
+
     else:
         print("%s is not a valid mode" % mode)
         return

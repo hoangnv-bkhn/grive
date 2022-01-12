@@ -12,9 +12,9 @@ require_auth = [
     "-st",
     "-by_cron",
     "-d", "-do", "-df", "-dfo",
-    "-upload", "upload", "-u",
+    "-u", "-uf", "-uo",
     "-s", "-sr", "-rs", "-sw", "-ws", "-su", "-us",  # share file
-    "-r", "-remove", "remove",
+    "-rm", "-rml", "-rmr",
     "-ls_files", "ls_files", "-laf",
     "-ls", "ls", "-l",
     "-ls_trash", "ls_trash", "-lt",
@@ -90,14 +90,26 @@ def main():
         elif arguments[arg_index] == "-c":
             config_utils.write_config()
 
-        elif arguments[arg_index] == "-u":
-            arg_index += 1
+        elif arguments[arg_index] == "-u" or arguments[arg_index] == "-uf" or arguments[arg_index] == "-uo":
+            folder_id = None
+            mode = False
+            if (arguments[arg_index] == "-uo"):
+                mode = True
+            if (arguments[arg_index] == "-uf"):
+                folder_id = arguments[arg_index + 1]
+                arg_index += 2
+            else:
+                arg_index += 1
             if is_matching(arg_index, len(arguments)):
-                drive_utils.f_create(drive, arguments[arg_index], None,
-                                     str(common_utils.get_file_name(arguments[arg_index])), True)
+                drive_utils.f_up(drive, folder_id, arguments[arg_index:len(arguments)], mode)
+                arg_index = len(arguments)
+
 
         elif arguments[arg_index] == "-sync":
-            drive_utils.f_sync(drive)
+            arg_index += 1
+            if is_matching(arg_index, len(arguments)):
+                drive_utils.f_sync(drive, arguments[arg_index])
+                arg_index = len(arguments)
 
         elif arguments[arg_index] == "-d" or arguments[arg_index] == "-do" \
                 or arguments[arg_index] == "-df" or arguments[arg_index] == "-dfo":
@@ -137,11 +149,16 @@ def main():
 
                 arg_index = len(arguments)  # all arguments used up by share
 
-        elif arguments[arg_index] == "-r" or arguments[arg_index] == "-remove" or arguments[arg_index] == "remove":
-            arg_index += 2
+        elif arguments[arg_index] == "-rm" or arguments[arg_index] == "-rml" or arguments[arg_index] == "-rmr":
+            mode = "all"
+            if (arguments[arg_index] == "-rml"):
+                mode = "local"
+            elif (arguments[arg_index] == "-rmr"):
+                mode = "remote"
+            arg_index += 1
             # in case of less arguments than required
             if is_matching(arg_index, len(arguments)):
-                drive_utils.file_remove(drive, arguments[arg_index - 1], arguments[arg_index:len(arguments)])
+                drive_utils.f_remove(drive, mode, arguments[arg_index:len(arguments)])
                 arg_index = len(arguments)
 
         elif arguments[arg_index] == "-o" or arguments[arg_index] == "-open" or arguments[arg_index] == "open":
