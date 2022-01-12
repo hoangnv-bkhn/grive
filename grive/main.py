@@ -14,14 +14,16 @@ require_auth = [
     "-d", "-do", "-df", "-dfo",
     "-u", "-uf", "-uo",
     "-s", "-sr", "-rs", "-sw", "-ws", "-su", "-us",  # share file
-    "-rm", "-rml", "-rmr",
+    "-da", "-dl", "-dr",
     "-ls_files", "ls_files", "-laf",
     "-ls", "ls", "-l",
     "-ls_trash", "ls_trash", "-lt",
     "-ls_folder", "ls_folder", "-lf",
     "-restore", "restore",
-    "-sync", "sync", "-synchronize",
-    "-usage", "usage"
+    "-z",
+    "-usage", "usage",
+    "-q", "-qc",
+    "-xs"
 ]
 
 
@@ -34,6 +36,7 @@ def main():
         import config_utils
         import drive_utils
         import jobs
+        import restore_default
 
     # using relativistic imports directly if launched as package
     except ImportError:
@@ -42,6 +45,7 @@ def main():
         from . import config_utils
         from . import drive_utils
         from . import jobs
+        from . import restore_default
 
     arguments = sys.argv[1:]
 
@@ -89,6 +93,9 @@ def main():
 
         elif arguments[arg_index] == "-c":
             config_utils.write_config()
+        
+        elif arguments[arg_index] == '-xs':
+            restore_default.restore_default()
 
         elif arguments[arg_index] == "-u" or arguments[arg_index] == "-uf" or arguments[arg_index] == "-uo":
             folder_id = None
@@ -96,16 +103,28 @@ def main():
             if (arguments[arg_index] == "-uo"):
                 mode = True
             if (arguments[arg_index] == "-uf"):
-                folder_id = arguments[arg_index + 1]
+                folder_id = arguments[len(arguments) - 1]
                 arg_index += 2
             else:
                 arg_index += 1
             if is_matching(arg_index, len(arguments)):
-                drive_utils.f_up(drive, folder_id, arguments[arg_index:len(arguments)], mode)
+                if (arguments[arg_index] == "-uf"):
+                    drive_utils.f_up(drive, folder_id, arguments[arg_index:len(arguments) - 1], mode)
+                    arg_index = len(arguments)
+                else:
+                    drive_utils.f_up(drive, folder_id, arguments[arg_index:len(arguments)], mode)
+                    arg_index = len(arguments)
+
+        elif arguments[arg_index] == "-q" or arguments[arg_index] == '-qc':
+            arg_index += 1
+            mode = True
+            if arguments[arg_index] == "-q":
+                mode = False
+            if is_matching(arg_index, len(arguments)):
+                drive_utils.f_exclusive(arguments[arg_index], mode)
                 arg_index = len(arguments)
 
-
-        elif arguments[arg_index] == "-sync":
+        elif arguments[arg_index] == "-z":
             arg_index += 1
             if is_matching(arg_index, len(arguments)):
                 drive_utils.f_sync(drive, arguments[arg_index])
@@ -149,11 +168,11 @@ def main():
 
                 arg_index = len(arguments)  # all arguments used up by share
 
-        elif arguments[arg_index] == "-rm" or arguments[arg_index] == "-rml" or arguments[arg_index] == "-rmr":
+        elif arguments[arg_index] == "-da" or arguments[arg_index] == "-dl" or arguments[arg_index] == "-dr":
             mode = "all"
-            if (arguments[arg_index] == "-rml"):
+            if (arguments[arg_index] == "-dl"):
                 mode = "local"
-            elif (arguments[arg_index] == "-rmr"):
+            elif (arguments[arg_index] == "-dr"):
                 mode = "remote"
             arg_index += 1
             # in case of less arguments than required
