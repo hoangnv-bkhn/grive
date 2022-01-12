@@ -210,18 +210,22 @@ def f_create(drive, addr, fold_id, rel_addr, list_f, overwrite, isSync, show_upd
 
     if isSync is True and overwrite is False and list_f is None:
         list_f = f_list(drive, "root", True)
+        list_fold = get_list_folders(drive, "root")
+        for i in list_fold:
+            list_f.append(i)
 
     check_old_id = True
 
-    try:
-        c_id = os.getxattr(addr, 'user.id')
-        c_id = c_id.decode()
-        for i in list_f:
-            if i['id'] == c_id:
-                check_old_id = False
-                break      
-    except:
-        check_old_id = False
+    if len(list_f) > 0:
+        try:
+            c_id = os.getxattr(addr, 'user.id')
+            c_id = c_id.decode()
+            for i in list_f:
+                if i['id'] == c_id:
+                    check_old_id = False
+                    break      
+        except:
+            check_old_id = False
 
     # creating if it's a folder
     if os.path.isdir(addr):
@@ -439,6 +443,9 @@ def f_sync(drive, addr):
             fold_id = os.getxattr(path, 'user.id')
             fold_id = fold_id.decode()
             list_f = f_list(drive, fold_id, True)
+            list_fold = get_list_folders(drive, fold_id)
+            for i in list_fold:
+                list_f.append(i)            
             list_l, listlf = f_list_local(path, True)
             for i in listlf:
                 list_l.append(i)
@@ -451,6 +458,9 @@ def f_sync(drive, addr):
     else:
         check_root = True
         list_f = f_list(drive, "root", True)
+        list_fold = get_list_folders(drive, "root")
+        for i in list_fold:
+            list_f.append(i)  
         # list_root = f_list(drive, "root", False)
         list_l, listlf = f_list_local(path, True)
         for i in listlf:
