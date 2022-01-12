@@ -4,6 +4,8 @@ import sys
 from os import path
 import os
 from datetime import datetime
+from pathlib import Path
+
 from pydrive.drive import GoogleDrive
 from prettytable import PrettyTable
 
@@ -114,15 +116,17 @@ def main():
         elif arguments[arg_index] == "-d" or arguments[arg_index] == "-do" \
                 or arguments[arg_index] == "-df" or arguments[arg_index] == "-dfo":
             arg_index += 1
+            print()
             if is_matching(arg_index, len(arguments)):
                 if arguments[0] == "-df" or arguments[0] == "-dfo":
-                    if os.path.exists(arguments[len(arguments) - 1]):
-                        save_location = arguments[len(arguments) - 1]
+                    save_location = os.path.join(os.path.expanduser(Path().resolve()), arguments[len(arguments) - 1])
+                    if os.path.exists(save_location):
+                        # save_location = arguments[len(arguments) - 1]
                         for argument in arguments[arg_index: len(arguments) - 1]:
-                            print(argument)
+                            # print(argument)
                             drive_utils.f_down(drive, arguments[0], argument, save_location)
                     else:
-                        print('%s does not exist !' % arguments[len(arguments) - 1])
+                        print(' %s does not exist !' % arguments[len(arguments) - 1])
 
                 elif arguments[0] == "-d" or arguments[0] == "-do":
                     for argument in arguments[arg_index: len(arguments)]:
@@ -132,6 +136,7 @@ def main():
 
                 arg_index = len(arguments)  # all arguments used up by download
                 # if not drive_utils.is_valid_id(drive, arguments[len(arguments) - 1]) and len(arguments) > 2:
+            print('\n Completed!\n')
 
         elif arguments[arg_index] == "-s" or arguments[arg_index] == "-sr" \
                 or arguments[arg_index] == "-sw" or arguments[arg_index] == "-us":

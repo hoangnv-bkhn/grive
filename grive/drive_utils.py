@@ -38,9 +38,18 @@ def f_all(drive, fold_id, file_list, download, sync_folder, option):
     for f in drive.ListFile({'q': q_string}).GetList():
         if f['mimeType'] == 'application/vnd.google-apps.folder':
             if download:  # if we are to download the files
-                temp_d_folder = os.path.join(sync_folder, f['title'])
-                common_utils.dir_exists(temp_d_folder)
-                f_all(drive, f['id'], None, True, temp_d_folder, option)
+                save_location = os.path.join(sync_folder, f['title'])
+                if os.path.exists(save_location):
+                    save_location = common_utils.get_dup_name(sync_folder, os.path.basename(sync_folder))
+
+                common_utils.dir_exists(save_location)
+                os.setxattr(save_location, 'user.id', str.encode(f['id']))
+
+                stats = os.stat(save_location)
+                os.utime(save_location, (stats.st_atime, common_utils.utc2local(
+                    datetime.strptime(f['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
+
+                f_all(drive, f['id'], None, True, save_location, option)
 
             else:  # we want to just list the files
                 f_all(drive, f['id'], file_list, False, None, None)
@@ -55,7 +64,7 @@ def f_down(drive, option, file_id, save_folder):
     # print(sync_folder)
     # check if file id not valid
     if not is_valid_id(drive, file_id):
-        print("%s is an invalid id of file or folder !" % file_id)
+        print(" %s is an invalid id of file or folder !" % file_id)
         return
 
     d_file = drive.CreateFile({'id': file_id})
@@ -84,25 +93,37 @@ def f_down(drive, option, file_id, save_folder):
             if elem['id'] == folder_remote_id:
                 has_in_local = True
                 folder_local_name = elem['title']
+                # print(123)
 
         folder_path = os.path.join(save_folder, folder_local_name)
+        # print(folder_path)
         flag = True
         if has_in_local:
             if overwrite:
                 if os.path.isdir(folder_path):
-                    print(folder_path)
+                    # print(folder_path)
                     shutil.rmtree(folder_path)
-                    print("Recreating folder %s in %s" % (folder_remote_name, save_folder))
+                    print(" Recreating folder %s in %s" % (folder_remote_name, save_folder))
             else:
                 flag = False
-                print("Folder '%s' already present in %s" % (d_file['title'], save_folder))
+                print(" Folder '%s' already present in %s" % (d_file['title'], save_folder))
         else:
-            print("Creating folder %s in %s" % (folder_remote_name, save_folder))
+            print(" Creating folder %s in %s" % (folder_remote_name, save_folder))
 
         if flag:
-            common_utils.dir_exists(folder_path)
-            os.setxattr(folder_path, 'user.id', str.encode(folder_remote_id))
-            f_all(drive, folder_remote_id, None, True, folder_path, option)
+            save_location = folder_path
+            if os.path.exists(save_location):
+                # print(456)
+                save_location = common_utils.get_dup_name(save_folder, os.path.basename(folder_path))
+            # print(save_location)
+            common_utils.dir_exists(save_location)
+            os.setxattr(save_location, 'user.id', str.encode(folder_remote_id))
+
+            stats = os.stat(save_location)
+            os.utime(save_location, (stats.st_atime, common_utils.utc2local(
+                datetime.strptime(d_file['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
+
+            f_all(drive, folder_remote_id, None, True, save_location, option)
 
     # for online file types like Gg Docs, Gg Sheet..etc
     elif d_file['mimeType'] in mime_swap:
@@ -132,12 +153,19 @@ def f_down(drive, option, file_id, save_folder):
                     os.remove(os.path.join(save_folder, file_local_name))
             else:
                 flag = False
-                print("%s already present in %s" % (f_name, save_folder))
+                print(" %s already present in %s" % (f_name, save_folder))
         if flag:
-            print("Downloading " + os.path.join(save_folder, f_name))
-            d_file.GetContentFile(os.path.join(save_folder, f_name),
+            save_location = os.path.join(save_folder, f_name)
+            if os.path.exists(save_location):
+                save_location = common_utils.get_dup_name(save_folder, f_name)
+
+            print(" Downloading " + save_location)
+            d_file.GetContentFile(save_location,
                                   mimetype=mime_swap[d_file['mimeType']])
-            os.setxattr(os.path.join(save_folder, f_name), 'user.id', str.encode(file_remote_id))
+            os.setxattr(save_location, 'user.id', str.encode(file_remote_id))
+            stats = os.stat(save_location)
+            os.utime(save_location, (stats.st_atime, common_utils.utc2local(
+                datetime.strptime(d_file['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
 
     else:
         file_remote_name = d_file['title']
@@ -158,12 +186,19 @@ def f_down(drive, option, file_id, save_folder):
                     os.remove(os.path.join(save_folder, file_local_name))
             else:
                 flag = False
-                print("%s already present in %s" % (d_file['title'], save_folder))
+                print(" %s already present in %s" % (d_file['title'], save_folder))
 
         if flag:
-            print("Downloading " + os.path.join(save_folder, file_remote_name))
-            d_file.GetContentFile(os.path.join(save_folder, file_remote_name))
-            os.setxattr(os.path.join(save_folder, file_remote_name), 'user.id', str.encode(file_remote_id))
+            save_location = os.path.join(save_folder, file_remote_name)
+            if os.path.exists(save_location):
+                save_location = common_utils.get_dup_name(save_folder, file_remote_name)
+            print(" Downloading " + save_location)
+            d_file.GetContentFile(save_location)
+            os.setxattr(save_location, 'user.id', str.encode(file_remote_id))
+            stats = os.stat(save_location)
+            os.utime(save_location, (stats.st_atime, common_utils.utc2local(
+                datetime.strptime(d_file['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
+            print(" Completed\n")
 
 
 def f_create(drive, addr, fold_id, rel_addr, listF, overwrite, isSync, show_update):

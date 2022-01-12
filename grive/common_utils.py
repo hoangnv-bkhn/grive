@@ -104,7 +104,6 @@ def get_local_path(drive, instance_id, sync_dir):
     """
     rel_path = []
     get_cloud_path(drive, instance_id, rel_path)
-    # print(rel_path)
     check = False
     for p in rel_path:
         for file in os.listdir(sync_dir):
@@ -120,7 +119,7 @@ def get_local_path(drive, instance_id, sync_dir):
         if not check:
             # print(456)
             if os.path.exists(os.path.join(sync_dir, p['name'])):
-                sync_dir = get_name_folder(sync_dir, p['name'])
+                sync_dir = get_dup_name(sync_dir, p['name'])
             else:
                 sync_dir = os.path.join(sync_dir, p['name'])
             dir_exists(sync_dir)
@@ -177,22 +176,23 @@ def check_option(option, char, length):
 
 
 def sizeof_fmt(num, suffix='B'):
-        if num=="": return num
-        for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
-            if abs(num) < 1024.0:
-                return '{:.1f} {}{}'.format(num, unit, suffix)
-            num /= 1024.0
-        return '{:.1f} {}{}'.format(num, 'Yi', suffix)
+    if num == "":
+        return num
+    for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
+        if abs(num) < 1024.0:
+            return '{:.1f} {}{}'.format(num, unit, suffix)
+        num /= 1024.0
+    return '{:.1f} {}{}'.format(num, 'Yi', suffix)
 
 
 def renderTypeShow(type):
-    switcher= {
+    switcher = {
         'dammay': u'\u2601',
         'maytinh': u'\U0001F4BB',
-        'dongbo':  u'\u2705',
+        'dongbo': u'\u2705',
         'notdongbo': u'\U0001F501'
     }
-    return switcher.get(type,'error')
+    return switcher.get(type, 'error')
 
 
 def isAudioFile(file):
@@ -224,30 +224,30 @@ def isDocument(file):
 
 
 def getFileSize(file):
-    if file['fileSize']=="": return ""
+    if file['fileSize'] == "": return ""
     size = file['fileSize']
     return int(size)
 
 
-def get_name_folder(folder, name):
+def get_dup_name(folder, name):
     if os.path.exists(os.path.join(folder, name)):
         tokens = name.split('_')
         try:
-            no_copy = int(tokens[-1])
+            no_copy = int(tokens[0])
             ver = no_copy + 1
             _name = ""
-            for i in range(len(tokens)-1):
+            for i in range(1, len(tokens)):
                 _name += tokens[i]
             name = _name
-            res = os.path.join(folder, name + "_" + str(ver))
+            res = os.path.join(folder, str(ver) + "_" + name)
             if os.path.exists(res):
-                return get_name_folder(folder, name + "_" + str(ver))
+                return get_dup_name(folder, str(ver) + "_" + name)
             else:
                 return res
         except:
-            result = os.path.join(folder, name + "_1")
+            result = os.path.join(folder, "1_" + name)
             if os.path.exists(result):
-                return get_name_folder(folder, name + "_1")
+                return get_dup_name(folder, "1_" + name)
             else:
                 return result
     else:
