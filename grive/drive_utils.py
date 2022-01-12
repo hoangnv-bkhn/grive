@@ -1,7 +1,6 @@
 from builtins import str
 import json
 import os
-from re import A
 import sys
 import shutil
 from pathlib import Path

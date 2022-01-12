@@ -188,9 +188,9 @@ def sizeof_fmt(num, suffix='B'):
 def renderTypeShow(type):
     switcher = {
         'dammay': u'\u2601',
-        'maytinh': u'\U0001F4BB',
-        'dongbo': u'\u2705',
-        'notdongbo': u'\U0001F501'
+        'maytinh': u'\U0001F5B3',
+        'dongbo': u'\u2714',
+        'notdongbo': u'\u27F3'
     }
     return switcher.get(type, 'error')
 

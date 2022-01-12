@@ -105,13 +105,13 @@ def main():
             mode = False
             if arguments[arg_index] == "-uo":
                 mode = True
-            if (arguments[arg_index] == "-uf"):
+            if arguments[arg_index] == "-uf":
                 folder_id = arguments[len(arguments) - 1]
                 arg_index += 2
             else:
                 arg_index += 1
             if is_matching(arg_index, len(arguments)):
-                if (arguments[arg_index] == "-uf"):
+                if arguments[arg_index] == "-uf":
                     drive_utils.f_up(drive, folder_id, arguments[arg_index:len(arguments) - 1], mode)
                     arg_index = len(arguments)
                 else:
@@ -175,9 +175,9 @@ def main():
 
         elif arguments[arg_index] == "-da" or arguments[arg_index] == "-dl" or arguments[arg_index] == "-dr":
             mode = "all"
-            if (arguments[arg_index] == "-dl"):
+            if arguments[arg_index] == "-dl":
                 mode = "local"
-            elif (arguments[arg_index] == "-dr"):
+            elif arguments[arg_index] == "-dr":
                 mode = "remote"
             arg_index += 1
             # in case of less arguments than required
