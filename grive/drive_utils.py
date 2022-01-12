@@ -423,22 +423,25 @@ def f_sync(drive, addr):
             fold_id = os.getxattr(path, 'user.id')
             fold_id = fold_id.decode()
             list_f = f_list(drive, fold_id, True)
-            list_l = f_list_local(path, True)
+            list_l, listlf = f_list_local(path, True)
+            for i in listlf:
+                list_l.append(i)
+
         except:
             addrs = []
             addrs.append(path)
             f_up(drive, None, addrs, False)
             return True
     else:
+        check_root = True
         list_f = f_list(drive, "root", True)
         # list_root = f_list(drive, "root", False)
-        list_l = f_list_local(sync_dir, True)
+        list_l, listlf = f_list_local(path, True)
+        for i in listlf:
+            list_l.append(i)
         # check_root = True
-    # if len(list_l) == 0 and check_root is True:
-    #     for x in list_root:
-    #         save_location = common_utils.get_local_path(drive, x['id'], config_utils.get_dir_sync_location())
-    #         f_down(drive, "-d", x['id'], save_location)
-    #     return True
+    if len(list_l) == 0 and check_root is True:
+        return True
     for x in list_f:
         check_f = False
         for y in list_l:
@@ -467,7 +470,8 @@ def f_sync(drive, addr):
             if x['id'] is not None:
                 list_delete.append(x['id'])
 
-    f_remove(drive, "all", list_delete)
+    if len(list_delete) > 0:
+        f_remove(drive, "local", list_delete)
     if os.path.join(path) == os.path.join(sync_dir):
         fold_id = None
     if f_create(drive, path, fold_id, str(common_utils.get_file_name(path)), None, False, True, False) is False:
@@ -630,7 +634,9 @@ def f_remove(drive, mode, addrs):
                 print("%s removed from %s" % (addr, sync_dir))
                 return True
             # check if file_id valid
-            list_local = f_list_local(sync_dir, True)
+            list_local, local_folders = f_list_local(sync_dir, True)
+            for i in local_folders:
+                list_local.append(i)
             if is_valid_id(drive, addr):
                 # file to be removed
                 r_file = drive.CreateFile({'id': addr})
