@@ -1,6 +1,8 @@
 print("%10s %8s" % (u'\u2601',u'\u1F4BB'))
-print("%10s %10s" % (u'\U0001F4BB','\u1F4BB'))
-print("%10s %10s" % (u'\u2705',u'\U0001F501'))
+print("%10s %10s" % (u'\U0001F5B3','\u1F4BB'))
+print("%10s %10s" % (u'\u2714',u'\U0001F501'))
+print("%10s %10s" % (u'\u27F3',u'\U0001F501'))
+import os
 # from prettytable import PrettyTable
 # x = PrettyTable()
 
@@ -14,3 +16,5 @@ print("%10s %10s" % (u'\u2705',u'\U0001F501'))
 # x.add_row(["Perth", 5386, 1554769, 869.4])
 
 # print(x)
+instance_id = os.getxattr("/home/tadanghuy/Documents/sync_grive/test/folder", 'user.id').decode()
+print(instance_id)
