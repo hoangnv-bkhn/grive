@@ -12,8 +12,9 @@ require_auth = [
     "-st",
     "-by_cron",
     "-d", "-do", "-df", "-dfo",
+    "-i", "-if",
+    "-s", "-sr", "-sw", "-us",  # share file
     "-u", "-uf", "-uo",
-    "-s", "-sr", "-rs", "-sw", "-ws", "-su", "-us",  # share file
     "-rm", "-rml", "-rmr",
     "-ls_files", "ls_files", "-laf",
     "-ls", "ls", "-l",
@@ -59,7 +60,7 @@ def main():
         else:
             drive = None
 
-        if arguments[arg_index] == "-v" or arguments[arg_index] == "-version" or arguments[arg_index] == "version":
+        if arguments[arg_index] == "-v":
             with open(common_utils.version_info_file) as p_file:
                 if p_file is None:
                     print("Error reading version file. Please report at tokyo.example@gmail.com")
@@ -67,7 +68,7 @@ def main():
                 p_data = p_file.read()
                 print(p_data)
 
-        elif arguments[arg_index] == "-h" or arguments[arg_index] == "-help" or arguments[arg_index] == "help":
+        elif arguments[arg_index] == "-h":
             with open(common_utils.help_file) as p_file:
                 if p_file is None:
                     print("Error reading user manual file.")
@@ -93,9 +94,9 @@ def main():
         elif arguments[arg_index] == "-u" or arguments[arg_index] == "-uf" or arguments[arg_index] == "-uo":
             folder_id = None
             mode = False
-            if (arguments[arg_index] == "-uo"):
+            if arguments[arg_index] == "-uo":
                 mode = True
-            if (arguments[arg_index] == "-uf"):
+            if arguments[arg_index] == "-uf":
                 folder_id = arguments[arg_index + 1]
                 arg_index += 2
             else:
@@ -103,7 +104,6 @@ def main():
             if is_matching(arg_index, len(arguments)):
                 drive_utils.f_up(drive, folder_id, arguments[arg_index:len(arguments)], mode)
                 arg_index = len(arguments)
-
 
         elif arguments[arg_index] == "-sync":
             arg_index += 1
@@ -133,9 +133,8 @@ def main():
                 arg_index = len(arguments)  # all arguments used up by download
                 # if not drive_utils.is_valid_id(drive, arguments[len(arguments) - 1]) and len(arguments) > 2:
 
-        elif arguments[arg_index] == "-s" or arguments[arg_index] == "-sr" or arguments[arg_index] == "-rs" or \
-                arguments[arg_index] == "-ws" or arguments[arg_index] == "-sw" or \
-                arguments[arg_index] == "-su" or arguments[arg_index] == "-us":
+        elif arguments[arg_index] == "-s" or arguments[arg_index] == "-sr" \
+                or arguments[arg_index] == "-sw" or arguments[arg_index] == "-us":
             arg_index += 1
             if is_matching(arg_index, len(arguments)):
                 # share to anyone
@@ -151,9 +150,9 @@ def main():
 
         elif arguments[arg_index] == "-rm" or arguments[arg_index] == "-rml" or arguments[arg_index] == "-rmr":
             mode = "all"
-            if (arguments[arg_index] == "-rml"):
+            if arguments[arg_index] == "-rml":
                 mode = "local"
-            elif (arguments[arg_index] == "-rmr"):
+            elif arguments[arg_index] == "-rmr":
                 mode = "remote"
             arg_index += 1
             # in case of less arguments than required
@@ -163,6 +162,11 @@ def main():
 
         elif arguments[arg_index] == "-o" or arguments[arg_index] == "-open" or arguments[arg_index] == "open":
             drive_utils.f_open(arguments[arg_index])
+
+        elif arguments[arg_index] == "-i" or arguments[arg_index] == "-if":
+            arg_index += 1
+            if is_matching(arg_index, len(arguments)):
+                info_local, info_remote = drive_utils.get_info(drive, arguments[0], arguments[arg_index])
 
         elif arguments[arg_index] == "-ls" or arguments[arg_index] == "-l" or arguments[arg_index] == "ls":
             # if (arg_index + 1) < len(arguments):
@@ -186,30 +190,31 @@ def main():
             #     drive_utils.f_list(drive, "all", 0)
 
             remote_files_list = drive_utils.f_list(drive, "all", 0)
-            local_files_list = drive_utils.f_list_local(config_utils.get_dir_sync_location(), False)
+            local_files_list, local_folders_list = drive_utils.f_list_local(config_utils.get_dir_sync_location(), False)
 
             for remote_file in remote_files_list:
                 for local_file in local_files_list:
                     if remote_file['title'] == local_file['title']:
                         if remote_file['type'] == 'application/vnd.google-apps.folder':
-                            if drive_utils.check_remote_dir_files_sync(drive,remote_file['id'],local_file['canonicalPath']):
+                            if drive_utils.check_remote_dir_files_sync(drive, remote_file['id'],
+                                                                       local_file['canonicalPath']):
                                 remote_file['typeShow'] = "dongbo"
                             else:
                                 remote_file['typeShow'] = "notdongbo"
                         else:
                             if remote_file['md5Checksum']:
-                                if remote_file['isFolder']  == local_file['type']:
+                                if remote_file['isFolder'] == local_file['type']:
                                     remote_file['typeShow'] = "dongbo"
                                 else:
                                     remote_file['typeShow'] = "notdongbo"
                             else:
-                                if remote_file['fileSize']  == local_file['fileSize']:
+                                if remote_file['fileSize'] == local_file['fileSize']:
                                     remote_file['typeShow'] = "dongbo"
                         break
                 if remote_file['typeShow'] is None:
                     remote_file['typeShow'] = "dammay"
 
-            result=[]
+            result = []
             for local_file in local_files_list:
                 for remote_file in remote_files_list:
                     isHave = False
@@ -218,17 +223,21 @@ def main():
                             isHave = True
                             break
                 if not isHave:
-                    local_file['typeShow']='maytinh'
+                    local_file['typeShow'] = 'maytinh'
                     result.append(local_file)
 
             table = PrettyTable()
-            table.field_names = ['Name', 'id', 'status', 'Date Modified', 'Type' , 'Size']
+            table.field_names = ['Name', 'id', 'status', 'Date Modified', 'Type', 'Size']
             for file in remote_files_list:
-                table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'], common_utils.renderTypeShow(file['typeShow']),
-                                                                  datetime.utcfromtimestamp(file['modifiedDate']), file['type'].split(".")[-1], common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                table.add_row([(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], file['id'],
+                               common_utils.renderTypeShow(file['typeShow']),
+                               datetime.utcfromtimestamp(file['modifiedDate']), file['type'].split(".")[-1],
+                               common_utils.sizeof_fmt(common_utils.getFileSize(file))])
             for file in result:
-                table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], '', common_utils.renderTypeShow(file['typeShow']),
-                                                                  datetime.utcfromtimestamp(file['modifiedDate']), file['type'], common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                table.add_row([(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], '',
+                               common_utils.renderTypeShow(file['typeShow']),
+                               datetime.utcfromtimestamp(file['modifiedDate']), file['type'],
+                               common_utils.sizeof_fmt(common_utils.getFileSize(file))])
             table.align = "l"
             print(table)
 
@@ -258,7 +267,8 @@ def main():
             print('%-30s | %50s | %30s | %10s' % ('Name', 'id', 'Date Modified', 'Size'))
             # print('---------------------------------------------------------------------------------------------------------------------------')
             for file in trash_files_list:
-                print('%-30s | %50s | %30s | %10s' % (file['title'], file['id'], datetime.utcfromtimestamp(file['modifiedDate']), file['fileSize']))
+                print('%-30s | %50s | %30s | %10s' % (
+                file['title'], file['id'], datetime.utcfromtimestamp(file['modifiedDate']), file['fileSize']))
 
         elif arguments[arg_index] == "-ls_folder" or arguments[arg_index] == "-lf" or \
                 arguments[arg_index] == "ls_folder":

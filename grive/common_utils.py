@@ -131,23 +131,35 @@ def get_local_path(drive, instance_id, sync_dir):
     return sync_dir
 
 
-def run_fast_scandir(dir):
-    subfolders, files = [], []
+def get_folder_size(folder_path):
+    total_size = 0
+    for dirpath, dirnames, filenames in os.walk(folder_path):
+        for f in filenames:
+            fp = os.path.join(dirpath, f)
+            # skip if it is symbolic link
+            if not os.path.islink(fp):
+                total_size += os.path.getsize(fp)
 
-    for f in os.scandir(dir):
+    return total_size
+
+
+def run_fast_scandir(folder):
+    sub_folders, files = [], []
+
+    for f in os.scandir(folder):
         if f.is_dir():
-            subfolders.append(f.path)
+            sub_folders.append(f.path)
         if f.is_file():
             files.append(f.path)
             # if os.path.splitext(f.name)[1].lower() in ext:
             #     files.append(f.path)
 
-    for dir in list(subfolders):
-        sf, f = run_fast_scandir(dir)
-        subfolders.extend(sf)
+    for folder in list(sub_folders):
+        sf, f = run_fast_scandir(folder)
+        sub_folders.extend(sf)
         files.extend(f)
 
-    return subfolders, files
+    return sub_folders, files
 
 
 def check_option(option, char, length):
@@ -163,6 +175,7 @@ def check_option(option, char, length):
         return True
     return False
 
+
 def sizeof_fmt(num, suffix='B'):
         if num=="": return num
         for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
@@ -170,6 +183,7 @@ def sizeof_fmt(num, suffix='B'):
                 return '{:.1f} {}{}'.format(num, unit, suffix)
             num /= 1024.0
         return '{:.1f} {}{}'.format(num, 'Yi', suffix)
+
 
 def renderTypeShow(type):
     switcher= {
@@ -180,11 +194,13 @@ def renderTypeShow(type):
     }
     return switcher.get(type,'error')
 
+
 def isAudioFile(file):
     if re.compile('audio', re.IGNORECASE).search(file['type']):
         return True
     else:
         return False
+
 
 def isImageFile(file):
     if re.compile('image', re.IGNORECASE).search(file['type']):
@@ -192,17 +208,20 @@ def isImageFile(file):
     else:
         return False
 
+
 def isVideoFile(file):
     if re.compile('video', re.IGNORECASE).search(file['type']):
         return True
     else:
         return False
 
+
 def isDocument(file):
     if re.compile('document', re.IGNORECASE).search(file['type']):
         return True
     else:
         return False
+
 
 def getFileSize(file):
     if file['fileSize']=="": return ""

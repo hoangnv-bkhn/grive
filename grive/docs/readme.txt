@@ -61,9 +61,9 @@
             * -sync : Sync specified folder to Google drive
 
             * -s [file_id] ([mail]) : Outputs the shareable link of the file
-                -sr, -rs : Share with 'reader' permission
-                -sw, -ws : Share with 'writer' permission
-                -su, -us : Unshare file
+                -sr     : Share with 'reader' permission
+                -sw     : Share with 'writer' permission
+                -us     : Unshare file
                 In case
                     Don't specify [mail]    : Share/Unshare with type every one
                     [mail] = 'all'          : Unshare file completely
