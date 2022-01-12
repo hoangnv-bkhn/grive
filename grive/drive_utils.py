@@ -22,7 +22,7 @@ except ImportError:
     from . import config_utils
 
 
-def f_all(drive, fold_id, file_list, download, sync_folder, option):
+def f_all(drive, fold_id, file_list, download, sync_folder, option, folder_list):
     """Recursively download or just list files in folder
 
         :param drive: Google Drive instance
@@ -31,6 +31,7 @@ def f_all(drive, fold_id, file_list, download, sync_folder, option):
         :param download: True if downloads, False if just recursively list file
         :param sync_folder: folder to store when download
         :param option: option download (overwrite or not)
+        :param folder_list: initial list to store list of folder when search
 
         :returns: List of file store in file_list param
     """
@@ -38,6 +39,7 @@ def f_all(drive, fold_id, file_list, download, sync_folder, option):
     q_string = "'%s' in parents and trashed=false" % fold_id
     for f in drive.ListFile({'q': q_string}).GetList():
         if f['mimeType'] == 'application/vnd.google-apps.folder':
+            # print(f['title'])
             if download:  # if we are to download the files
                 save_location = os.path.join(sync_folder, f['title'])
                 if os.path.exists(save_location):
@@ -50,10 +52,12 @@ def f_all(drive, fold_id, file_list, download, sync_folder, option):
                 os.utime(save_location, (stats.st_atime, common_utils.utc2local(
                     datetime.strptime(f['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
 
-                f_all(drive, f['id'], None, True, save_location, option)
+                f_all(drive, f['id'], None, True, save_location, option, folder_list)
 
             else:  # we want to just list the files
-                f_all(drive, f['id'], file_list, False, None, None)
+                # print(f['title'])
+                folder_list.append(f)
+                f_all(drive, f['id'], file_list, False, None, None, folder_list)
         else:
             if download:
                 f_down(drive, option, f['id'], sync_folder)
@@ -124,7 +128,7 @@ def f_down(drive, option, file_id, save_folder):
             os.utime(save_location, (stats.st_atime, common_utils.utc2local(
                 datetime.strptime(d_file['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
 
-            f_all(drive, folder_remote_id, None, True, save_location, option)
+            f_all(drive, folder_remote_id, None, True, save_location, option, None)
 
     # for online file types like Gg Docs, Gg Sheet..etc
     elif d_file['mimeType'] in mime_swap:
@@ -494,6 +498,7 @@ def f_sync(drive, addr):
 
     return True
 
+
 def f_exclusive(addr, options):
     if options is True:
         path = os.path.join(os.path.expanduser(Path().resolve()), addr)
@@ -517,6 +522,8 @@ def f_exclusive(addr, options):
                 f_exclusive(item)
         else:
             os.setxattr(addr, 'user.excludeUpload', str.encode('False'))
+
+
 def share_link(drive, option, file_id, mail):
     # print(mail)
     if is_valid_id(drive, file_id):
@@ -916,6 +923,33 @@ def f_list_local(folder, recursive):
         return files_info, folders_info
 
 
+def get_list_folders(drive, keyword):
+    folder_list = []
+    file_list = []
+    instance = None
+    check = False
+    if keyword == 'root':
+        check = True
+        instance = keyword
+    elif is_valid_id(drive, keyword):
+        folder = drive.CreateFile({'id': keyword})
+        folder.FetchMetadata(fetch_all=True)
+        if folder['mimeType'] == 'application/vnd.google-apps.folder':
+            check = True
+            instance = keyword
+    if check:
+        q_string = "'%s' in parents and trashed=false" % instance
+        for f in drive.ListFile({'q': q_string}).GetList():
+            # if file in list is folder, get it's file list
+            if f['mimeType'] == 'application/vnd.google-apps.folder':
+                # print(f['title'])
+                folder_list.append(f)
+                f_all(drive, f['id'], file_list, False, None, None, folder_list)
+            else:
+                file_list.append(f)
+
+    return folder_list
+
 # Operations for file list commands
 def f_list(drive, keyword, recursive):
     # get recursively all files in the folder
@@ -926,12 +960,12 @@ def f_list(drive, keyword, recursive):
                 # if file in list is folder, get it's file list
                 if f['mimeType'] == 'application/vnd.google-apps.folder':
                     # print(f['title'])
-                    f_all(drive, f['id'], file_list, False, None, None)
+                    f_all(drive, f['id'], file_list, False, None, None, None)
                 else:
                     file_list.append(f)
         else:
-            if is_valid_id(drive ,keyword):
-                f_all(drive, keyword, file_list, False, None, None)
+            if is_valid_id(drive, keyword):
+                f_all(drive, keyword, file_list, False, None, None, None)
 
         dicts = []
         for file in file_list:
@@ -969,7 +1003,7 @@ def f_list(drive, keyword, recursive):
 
         # lists all files and folders inside folder given as argument in keyword
         else:
-            if is_valid_id(drive,keyword):
+            if is_valid_id(drive, keyword):
                 q_string = "'%s' in parents and trashed=false" % keyword
                 for f in drive.ListFile({'q': q_string}).GetList():
                     file_list.append(f)
