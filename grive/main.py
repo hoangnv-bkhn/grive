@@ -168,7 +168,7 @@ def main():
 
                 arg_index = len(arguments)  # all arguments used up by download
                 # if not drive_utils.is_valid_id(drive, arguments[len(arguments) - 1]) and len(arguments) > 2:
-            print('\n Completed!\n')
+            print('\n')
 
         elif arguments[arg_index] == "-s" or arguments[arg_index] == "-sr" \
                 or arguments[arg_index] == "-sw" or arguments[arg_index] == "-us":
@@ -198,6 +198,11 @@ def main():
 
         elif arguments[arg_index] == "-o" or arguments[arg_index] == "-open" or arguments[arg_index] == "open":
             drive_utils.f_open(arguments[arg_index])
+
+        elif arguments[arg_index] == "-i" or arguments[arg_index] == "-if":
+            arg_index += 1
+            if is_matching(arg_index, len(arguments)):
+                info_local, info_remote = drive_utils.get_info(drive, arguments[0], arguments[arg_index])
 
         # elif arguments[arg_index] == "-l" or arguments[arg_index] == "-lr": # l lr lp: path lpr lf:id lfr
         elif arguments[arg_index] == "-l" or arguments[arg_index] == "-lr" or  arguments[arg_index] == "-lp" or arguments[arg_index] == "-lpr" or arguments[arg_index] == "-lf" or arguments[arg_index] == "-lfr":
@@ -291,13 +296,13 @@ def main():
                                                                     datetime.utcfromtimestamp(file['modifiedDate']), file['type'] if 'type' in file else "file", common_utils.sizeof_fmt(common_utils.getFileSize(file))])
 
             else: # truong hop khong co tham so
-                if arguments[arg_index] == "-l" :
+                if arguments[arg_index] == "-l":
                     remote_files_list = drive_utils.f_list(drive, "root", 0)
                     local_files_list, local_folders_list = drive_utils.f_list_local(config_utils.get_dir_sync_location(), False)
 
-                    result= drive_utils.filter_none_id(local_files_list)
+                    result = drive_utils.filter_none_id(local_files_list)
                     for file in result:
-                        table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], "", common_utils.renderTypeShow(file['typeShow']),
+                        table.add_row([(file['title'][:37] + "...") if len(file["title"])> 37 else file['title'], "", common_utils.renderTypeShow(file['typeShow']),
                                                                     datetime.utcfromtimestamp(file['modifiedDate']), file['type'], common_utils.sizeof_fmt(common_utils.getFileSize(file))])
                     drive_utils.compare_and_change_type_show(drive, remote_files_list, local_files_list)
 

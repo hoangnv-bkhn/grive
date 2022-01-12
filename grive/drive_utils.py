@@ -199,7 +199,6 @@ def f_down(drive, option, file_id, save_folder):
             stats = os.stat(save_location)
             os.utime(save_location, (stats.st_atime, common_utils.utc2local(
                 datetime.strptime(d_file['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
-            print(" Completed\n")
 
 
 def f_create(drive, addr, fold_id, rel_addr, list_f, overwrite, isSync, show_update):
