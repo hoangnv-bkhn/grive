@@ -211,6 +211,18 @@ def f_create(drive, addr, fold_id, rel_addr, list_f, overwrite, isSync, show_upd
     if isSync is True and overwrite is False and list_f is None:
         list_f = f_list(drive, "root", True)
 
+    check_old_id = True
+
+    try:
+        c_id = os.getxattr(addr, 'user.id')
+        c_id = c_id.decode()
+        for i in list_f:
+            if i['id'] == c_id:
+                check_old_id = False
+                break      
+    except:
+        check_old_id = False
+
     # creating if it's a folder
     if os.path.isdir(addr):
         sync_dir = config_utils.get_dir_sync_location()
@@ -222,7 +234,7 @@ def f_create(drive, addr, fold_id, rel_addr, list_f, overwrite, isSync, show_upd
             folder = drive.CreateFile()
             folder['id'] = None
             check_id = True
-        if isSync is True and check_id is False and overwrite is False:
+        if isSync is True and check_id is False and overwrite is False and check_old_id is False:
             try:
                 check_id = True
                 fold_id = os.getxattr(addr, 'user.id')
@@ -230,6 +242,8 @@ def f_create(drive, addr, fold_id, rel_addr, list_f, overwrite, isSync, show_upd
                 folder = drive.CreateFile({'id': fold_id})
             except:
                 check_id = False
+        if check_old_id is True:
+            check_id = False
         if check_id is False:
             # if folder to be added to root
             if fold_id is None:
@@ -263,7 +277,7 @@ def f_create(drive, addr, fold_id, rel_addr, list_f, overwrite, isSync, show_upd
         check_id = False
         checkModified = False
         stats = os.stat(addr)
-        if isSync is True and overwrite is False:
+        if isSync is True and overwrite is False and check_old_id is False:
             try:
                 check_id = True
                 file_id = os.getxattr(addr, 'user.id')
@@ -276,6 +290,8 @@ def f_create(drive, addr, fold_id, rel_addr, list_f, overwrite, isSync, show_upd
                 up_file = drive.CreateFile({'id': file_id})
             except:
                 check_id = False
+        if check_old_id is True:
+            check_id = False
         if check_id is False:
             # if file is to be added to root
             if fold_id is None:
