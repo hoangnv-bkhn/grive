@@ -101,7 +101,10 @@ def main():
 
 
         elif arguments[arg_index] == "-sync":
-            drive_utils.f_sync(drive)
+            arg_index += 1
+            if is_matching(arg_index, len(arguments)):
+                drive_utils.f_sync(drive, arguments[arg_index])
+                arg_index = len(arguments)
 
         elif arguments[arg_index] == "-d" or arguments[arg_index] == "-od" or arguments[arg_index] == "-do":
             arg_index += 1
