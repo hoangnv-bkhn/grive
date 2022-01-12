@@ -24,6 +24,9 @@
             * -v
                 Shows the current version of the Grive.
 
+            * -xs
+                Restore Grive to the default.
+
             * -config : Gives option to edit the configuration file on which automatic upload and download works
                 Sync Directory: The directory where the files are downloaded and uploaded, relative to home directory
                     (e.g. for "~/Documents/sync_grive", can input "Documents/sync_grive" or absolute path)
@@ -54,11 +57,14 @@
                     Don't specify [folder]  : Save at the corresponding location on remote
                     Specify [folder]        : Save at the specified folder
 
-            * -u [file_name/folder_name] : Upload file/folder corresponding to the root given to Google Drive, for one time.
-                -uf: Upload file/folder corresponding to the address given to Google Drive, for one time.
-                -ufo: Upload file/folder corresponding to the address given to Google Drive and overwrite mode.
+            * -u [file_name/folder_name] : Upload file/folder corresponding to the root given to Google Drive.
+                -uf: Upload file/folder to selected location on Google Drive.
+                -uo: Upload file/folder corresponding to the address given to Google Drive and overwrite mode.
 
-            * -sync : Sync specified folder to Google drive
+            * -q [file_name/folder_name]: Exclude file/folder when upload, sync.
+                -qc [file_name/folder_name]: Remove from exclusion list.
+
+            * -z [file_name/folder_name]: Sync specified folder to Google drive
 
             * -s [file_id] ([mail]) : Outputs the shareable link of the file
                 -sr     : Share with 'reader' permission
@@ -70,11 +76,11 @@
 
             * -restore [file_id] : Restore files from trash.
 
-            * -rm [file_id/folder_id]
+            * -da [file_id/folder_id]
                 Delete the mentioned file from Google Drive sync directory and Google Drive remote.
-                You can add multiple file_ids/folder_ids one after the other, e.g. -rm [file_id1] [file_id2]
-                -rml [file_name/folder_name] : Delete the mentioned file from Google Drive sync directory
-                -rmr [file_id/folder_id] : Delete the mentioned file from Google Drive remote
+                You can add multiple file_ids/folder_ids one after the other, e.g. -d [file_id1] [file_id2]
+                -dl [file_name/folder_name] : Delete the mentioned file from Google Drive sync directory
+                -dr [file_id/folder_id] : Delete the mentioned file from Google Drive remote
 
             * -open, -o  :  Opens the Sync Directory in file explorer
 

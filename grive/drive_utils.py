@@ -1,6 +1,7 @@
 from builtins import str
 import json
 import os
+from re import A
 import sys
 import shutil
 from pathlib import Path
@@ -201,14 +202,14 @@ def f_down(drive, option, file_id, save_folder):
             print(" Completed\n")
 
 
-def f_create(drive, addr, fold_id, rel_addr, listF, overwrite, isSync, show_update):
+def f_create(drive, addr, fold_id, rel_addr, list_f, overwrite, isSync, show_update):
     # Check whether address is right or not
     if not os.path.exists(addr):
         print("Specified file/folder doesn't exist, check the address!")
         return
 
-    if isSync is True and overwrite is False and listF is None:
-        listF = f_list(drive, "root", True)
+    if isSync is True and overwrite is False and list_f is None:
+        list_f = f_list(drive, "root", True)
 
     # creating if it's a folder
     if os.path.isdir(addr):
@@ -239,14 +240,20 @@ def f_create(drive, addr, fold_id, rel_addr, listF, overwrite, isSync, show_upda
 
             folder['title'] = common_utils.get_file_name(addr)  # sets folder title
             folder['mimeType'] = 'application/vnd.google-apps.folder'  # assigns it as GDrive folder
-            folder.Upload()
-            if isSync is True or overwrite is True:
-                os.setxattr(addr, 'user.id', str.encode(folder['id']))
+            try:
+                check_e = os.getxattr(addr, 'user.excludeUpload')
+                check_e = check_e.decode()
+            except:
+                check_e = 'False'
+            if check_e == 'False':
+                folder.Upload()
+                if isSync is True or overwrite is True:
+                    os.setxattr(addr, 'user.id', str.encode(folder['id']))
 
         # Traversing inside files/folders
         for item in os.listdir(addr):
             f_create(drive, os.path.join(addr, item), folder['id'], rel_addr + "/" +
-                     str(common_utils.get_file_name(os.path.join(addr, item))), listF, overwrite, isSync, show_update)
+                     str(common_utils.get_file_name(os.path.join(addr, item))), list_f, overwrite, isSync, show_update)
 
     # creating file
     else:
@@ -261,7 +268,7 @@ def f_create(drive, addr, fold_id, rel_addr, listF, overwrite, isSync, show_upda
                 check_id = True
                 file_id = os.getxattr(addr, 'user.id')
                 file_id = file_id.decode()
-                for x in listF:
+                for x in list_f:
                     if x['id'] == file_id:
                         if x['modifiedDate'] != datetime.utcfromtimestamp(stats.st_mtime).timestamp():
                             checkModified = True
@@ -280,12 +287,17 @@ def f_create(drive, addr, fold_id, rel_addr, listF, overwrite, isSync, show_upda
         if checkModified is True or check_id is False:
             up_file.SetContentFile(addr)
             up_file['title'] = common_utils.get_file_name(addr)  # sets file title to original
-            up_file.Upload()
-            os.utime(addr, (stats.st_atime, common_utils.utc2local(
-                datetime.strptime(up_file['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
-            if isSync is True or overwrite is True:
-                if check_id is False or overwrite is True:
-                    os.setxattr(addr, 'user.id', str.encode(up_file['id']))
+            try:
+                check_e = os.getxattr(addr, 'user.excludeUpload')
+                check_e = check_e.decode()
+            except:
+                check_e = 'False'
+            if check_e == 'False':
+                up_file.Upload()
+                os.utime(addr, (stats.st_atime, common_utils.utc2local(datetime.strptime(up_file['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
+                if isSync is True or overwrite is True:
+                    if check_id is False or overwrite is True:
+                        os.setxattr(addr, 'user.id', str.encode(up_file['id']))
 
     return True
 
@@ -293,6 +305,7 @@ def f_create(drive, addr, fold_id, rel_addr, listF, overwrite, isSync, show_upda
 def f_up(drive, fold_id, addrs, overwrite):
     sync_dir = config_utils.get_dir_sync_location()
     for addr in addrs:
+        addr = os.path.join(os.path.expanduser(Path().resolve()), addr)
         # checks if the specified file/folder exists
         if not os.path.exists(addr):
             print("Specified file/folder doesn't exist, please remove from upload list using -config")
@@ -339,9 +352,15 @@ def f_up(drive, fold_id, addrs, overwrite):
                                         {"parents": [{"kind": "drive#fileLink", "id": folder['id']}]})
                                 folder['title'] = x  # sets folder title
                                 folder['mimeType'] = 'application/vnd.google-apps.folder'  # assigns it as GDrive folder
-                                folder.Upload()
-                                folder_addr = os.path.join(folder_addr, x)
-                                os.setxattr(folder_addr, 'user.id', str.encode(folder['id']))
+                                try:
+                                    check_e = os.getxattr(addr, 'user.excludeUpload')
+                                    check_e = check_e.decode()
+                                except:
+                                    check_e = 'False'
+                                if check_e == 'False':
+                                    folder.Upload()
+                                    folder_addr = os.path.join(folder_addr, x)
+                                    os.setxattr(folder_addr, 'user.id', str.encode(folder['id']))
                                 i += 1
                             print("Uploading...")
                             if f_create(drive, addr, folder['id'], f_local_name, None, True, True, False) is False:
@@ -366,8 +385,14 @@ def f_up(drive, fold_id, addrs, overwrite):
                                 folder = drive.CreateFile({"parents": [{"kind": "drive#fileLink", "id": folder['id']}]})
                             folder['title'] = x  # sets folder title
                             folder['mimeType'] = 'application/vnd.google-apps.folder'  # assigns it as GDrive folder
-                            folder.Upload()
-                            os.setxattr(folder_addr, 'user.id', str.encode(folder['id']))
+                            try:
+                                check_e = os.getxattr(addr, 'user.excludeUpload')
+                                check_e = check_e.decode()
+                            except:
+                                check_e = 'False'
+                            if check_e == 'False':
+                                folder.Upload()
+                                os.setxattr(folder_addr, 'user.id', str.encode(folder['id']))
                             i += 1
                         print("Uploading...")
                         if f_create(drive, addr, folder['id'], f_local_name, None, True, True, False) is False:
@@ -383,30 +408,96 @@ def f_up(drive, fold_id, addrs, overwrite):
 
 
 def f_sync(drive, addr):
+    path = os.path.join(os.path.expanduser(Path().resolve()), addr)
+    if path.startswith(config_utils.get_dir_sync_location() + os.sep) is False:
+        print
+        # return False
+
     sync_dir = config_utils.get_dir_sync_location()
-    if sync_dir not in addr:
-        return False
-    # listF = f_list(addr, "root", False)
-    if os.path.join(addr) != os.path.join(sync_dir):
+
+    list_delete = []
+    print("Sync...")
+    # check_root = False
+    if os.path.join(path) != os.path.join(sync_dir):
         try:
-            fold_id = os.getxattr(addr, 'user.id')
+            fold_id = os.getxattr(path, 'user.id')
             fold_id = fold_id.decode()
+            list_f = f_list(drive, fold_id, True)
+            list_l = f_list_local(path, True)
         except:
             addrs = []
-            addrs.append(addr)
+            addrs.append(path)
             f_up(drive, None, addrs, False)
             return True
     else:
-        # fold_id = listF[0]['parents']['id']
+        list_f = f_list(drive, "root", True)
+        # list_root = f_list(drive, "root", False)
+        list_l = f_list_local(sync_dir, True)
+        # check_root = True
+    # if len(list_l) == 0 and check_root is True:
+    #     for x in list_root:
+    #         save_location = common_utils.get_local_path(drive, x['id'], config_utils.get_dir_sync_location())
+    #         f_down(drive, "-d", x['id'], save_location)
+    #     return True
+    for x in list_f:
+        check_f = False
+        for y in list_l:
+            if x['id'] == y['id']:
+                stats = os.stat(y['canonicalPath'])
+                if x['modifiedDate'] != datetime.utcfromtimestamp(stats.st_mtime).timestamp():
+                    save_location = common_utils.get_local_path(drive, x['id'], config_utils.get_dir_sync_location())
+                    if x['isFolder'] != 'folder':
+                        f_down(drive, "-do", x['id'], save_location)
+                check_f = True
+                break
+        # if check_f is False:
+        #     save_location = common_utils.get_local_path(drive, x['id'], config_utils.get_dir_sync_location())
+        #     if x['isFolder'] != 'folder':
+        #         f_down(drive, "-d", x['id'], save_location)
+        #     elif len(f_list(drive, x['id'], False)) == 0:
+        #         f_down(drive, "-d", x['id'], save_location)
+
+    for x in list_l:
+        check_f = False
+        for y in list_f:
+            if x['id'] == y['id']:
+                check_f = True
+                break
+        if check_f is False:
+            if x['id'] is not None:
+                list_delete.append(x['id'])
+
+    f_remove(drive, "all", list_delete)
+    if os.path.join(path) == os.path.join(sync_dir):
         fold_id = None
-    # f_down(drive, "-d", fold_id, addr)
-    print("Sync...")
-    if f_create(drive, addr, fold_id, str(common_utils.get_file_name(addr)), None, False, True, False) is False:
+    if f_create(drive, path, fold_id, str(common_utils.get_file_name(path)), None, False, True, False) is False:
         print("Sync unsuccessful, please try again!")
 
     return True
 
-
+def f_exclusive(addr, options):
+    if options is True:
+        path = os.path.join(os.path.expanduser(Path().resolve()), addr)
+        if path.startswith(config_utils.get_dir_sync_location() + os.sep) is False:
+            return False
+        # Traversing inside files/folders
+        if os.path.isdir(addr):
+            os.setxattr(addr, 'user.excludeUpload', str.encode('True'))
+            for item in os.listdir(addr):
+                f_exclusive(item)
+        else:
+            os.setxattr(addr, 'user.excludeUpload', str.encode('True'))
+    else:
+        path = os.path.join(os.path.expanduser(Path().resolve()), addr)
+        if path.startswith(config_utils.get_dir_sync_location() + os.sep) is False:
+            return False
+        # Traversing inside files/folders
+        if os.path.isdir(addr):
+            os.setxattr(addr, 'user.excludeUpload', str.encode('False'))
+            for item in os.listdir(addr):
+                f_exclusive(item)
+        else:
+            os.setxattr(addr, 'user.excludeUpload', str.encode('False'))
 def share_link(drive, option, file_id, mail):
     # print(mail)
     if is_valid_id(drive, file_id):
@@ -475,16 +566,19 @@ def f_remove(drive, mode, addrs):
         sync_dir = config_utils.get_dir_sync_location()
         # Appending file/folder name to download directory
         for addr in addrs:
-            f_path = os.path.join(sync_dir, addr)
-            if not os.path.exists(f_path):
+            addr = os.path.join(os.path.expanduser(Path().resolve()), addr)
+            if addr.startswith(config_utils.get_dir_sync_location() + os.sep) is False:
+                return False
+            if not os.path.exists(addr):
                 print("%s doesn't exist in %s" % (addr, sync_dir))
             else:
                 # use recursive removal if directory
                 if os.path.isdir(addr):
-                    shutil.rmtree(f_path)
+                    shutil.rmtree(addr)
                 else:
-                    os.remove(f_path)
+                    os.remove(addr)
                 print("%s removed from %s" % (addr, sync_dir))
+        return True
 
     elif mode == "remote":
         for addr in addrs:
@@ -501,32 +595,46 @@ def f_remove(drive, mode, addrs):
                 else:
                     r_file.Trash()
                     print("%s moved to GDrive trash. List files in trash by -lt parameter" % f_name)
+        return True
 
     elif mode == "all":
         sync_dir = config_utils.get_dir_sync_location()
         for addr in addrs:
+            check_path = True
+            f_path = os.path.join(os.path.expanduser(Path().resolve()), addr)
+            if f_path.startswith(config_utils.get_dir_sync_location() + os.sep) is False:
+                check_path = False
+            if os.path.exists(f_path) and check_path is True:
+                try:
+                    f_id = os.getxattr(f_path, 'user.id')
+                    f_id = f_id.decode()
+                    if is_valid_id(drive, f_id):
+                        # file to be removed
+                        r_file = drive.CreateFile({'id': f_id})
+                        f_name = r_file['title']
+                        # delete permanently if in trash
+                        if is_trash(drive, r_file['id']):
+                            r_file.Delete()
+                            print("%s deleted permanently" % f_name)
+                        # move to trash
+                        else:
+                            r_file.Trash()
+                            print("%s moved to GDrive trash. List files in trash by -lt parameter" % f_name)
+                except:
+                    print
+                # use recursive removal if directory
+                if os.path.isdir(f_path):
+                    shutil.rmtree(f_path)
+                else:
+                    os.remove(f_path)
+                print("%s removed from %s" % (addr, sync_dir))
+                return True
             # check if file_id valid
+            list_local = f_list_local(sync_dir, True)
             if is_valid_id(drive, addr):
                 # file to be removed
                 r_file = drive.CreateFile({'id': addr})
                 f_name = r_file['title']
-                f_parent = r_file['parents'][0]
-                folder_name = []
-                while f_parent['isRoot'] is False:
-                    folder = drive.CreateFile({'id': f_parent['id']})
-                    folder_name.append(folder['title'])
-                    f_parent = folder['parents'][0]
-                if (len(folder_name) > 0):
-                    folder_name.reverse()
-                    f_path = os.path.join(sync_dir)
-                    for x in folder_name:
-                        f_path = os.path.join(f_path, x)
-                    f_path = os.path.join(f_path, f_name)
-                    if os.path.exists(f_path):
-                        if os.path.isdir(f_path):
-                            shutil.rmtree(f_path)
-                        else:
-                            os.remove(f_path)
                 # delete permanently if in trash
                 if is_trash(drive, r_file['id']):
                     r_file.Delete()
@@ -535,10 +643,20 @@ def f_remove(drive, mode, addrs):
                 else:
                     r_file.Trash()
                     print("%s moved to GDrive trash. List files in trash by -lt parameter" % f_name)
+            for x in list_local:
+                if x['id'] == addr:
+                    f_addr = x['canonicalPath']
+                    # use recursive removal if directory
+                    if os.path.isdir(f_addr):
+                        shutil.rmtree(f_addr)
+                    else:
+                        os.remove(f_addr)
+                        print("%s removed from %s" % (f_addr, sync_dir))
+        return True
 
     else:
         print("%s is not a valid mode" % mode)
-        return
+        return False
 
 
 def get_info(drive, option, instance):
