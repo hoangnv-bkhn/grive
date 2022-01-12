@@ -375,7 +375,7 @@ def f_sync(drive, addr):
 
     list_delete = []
     print("Sync...")
-    check_root = False
+    # check_root = False
     if os.path.join(path) != os.path.join(sync_dir):
         try:
             fold_id = os.getxattr(path, 'user.id')
@@ -389,14 +389,14 @@ def f_sync(drive, addr):
             return True
     else:
         list_f = f_list(drive, "root", True)
-        list_root = f_list(drive, "root", False)
+        # list_root = f_list(drive, "root", False)
         list_l = f_list_local(sync_dir, True)
-        check_root = True
-    if len(list_l) == 0 and check_root is True:
-        for x in list_root:
-            save_location = common_utils.get_local_path(drive, x['id'], config_utils.get_dir_sync_location())
-            f_down(drive, "-d", x['id'], save_location)
-        return True
+        # check_root = True
+    # if len(list_l) == 0 and check_root is True:
+    #     for x in list_root:
+    #         save_location = common_utils.get_local_path(drive, x['id'], config_utils.get_dir_sync_location())
+    #         f_down(drive, "-d", x['id'], save_location)
+    #     return True
     for x in list_f:
         check_f = False
         for y in list_l:
@@ -408,12 +408,12 @@ def f_sync(drive, addr):
                         f_down(drive, "-do", x['id'], save_location)
                 check_f = True
                 break
-        if check_f is False:
-            save_location = common_utils.get_local_path(drive, x['id'], config_utils.get_dir_sync_location())
-            if x['isFolder'] != 'folder':
-                f_down(drive, "-d", x['id'], save_location)
-            elif len(f_list(drive, x['id'], False)) == 0:
-                f_down(drive, "-d", x['id'], save_location)
+        # if check_f is False:
+        #     save_location = common_utils.get_local_path(drive, x['id'], config_utils.get_dir_sync_location())
+        #     if x['isFolder'] != 'folder':
+        #         f_down(drive, "-d", x['id'], save_location)
+        #     elif len(f_list(drive, x['id'], False)) == 0:
+        #         f_down(drive, "-d", x['id'], save_location)
 
     for x in list_l:
         check_f = False
