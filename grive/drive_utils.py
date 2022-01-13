@@ -128,7 +128,7 @@ def f_down(drive, option, file_id, save_folder):
             os.utime(save_location, (stats.st_atime, common_utils.utc2local(
                 datetime.strptime(d_file['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
 
-            f_all(drive, folder_remote_id, None, True, save_location, option, None)
+            f_all(drive, folder_remote_id, None, True, save_location, option, [])
 
     # for online file types like Gg Docs, Gg Sheet..etc
     elif d_file['mimeType'] in mime_swap:
@@ -331,7 +331,7 @@ def f_up(drive, fold_id, addrs, overwrite):
         addr = os.path.join(os.path.expanduser(Path().resolve()), addr)
         # checks if the specified file/folder exists
         if not os.path.exists(addr):
-            print("Specified file/folder doesn't exist, please remove from upload list using -config")
+            print("Specified file/folder doesn't exist !")
             return
         f_local_name = str(common_utils.get_file_name(addr))
         if sync_dir not in addr or fold_id is not None or os.path.join(addr) == os.path.join(sync_dir):
@@ -476,7 +476,7 @@ def f_sync(drive, addr):
         for y in list_l:
             if x['id'] == y['id']:
                 stats = os.stat(y['canonicalPath'])
-                if x['modifiedDate'] != datetime.utcfromtimestamp(stats.st_mtime).timestamp():
+                if x['modifiedDate'] > datetime.utcfromtimestamp(stats.st_mtime).timestamp():
                     save_location = common_utils.get_local_path(drive, x['id'], config_utils.get_dir_sync_location())
                     if x['isFolder'] != 'folder':
                         f_down(drive, "-do", x['id'], save_location)
@@ -958,7 +958,21 @@ def get_list_folders(drive, keyword):
             else:
                 file_list.append(f)
 
-    return folder_list
+    results = []
+    for elem in folder_list:
+        result = {
+            'storageLocation': 'remote',
+            'id': elem['id'],
+            'title': elem['title'],
+            'modifiedDate': datetime.timestamp(datetime.strptime(elem['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')),
+            'md5Checksum': elem.get('md5Checksum'),
+            'mimeType': elem['mimeType'],
+            'fileSize': elem.get('fileSize') if elem.get('fileSize') else None,
+        }
+        results.append(result)
+
+    return results
+
 
 # Operations for file list commands
 def f_list(drive, keyword, recursive):
@@ -970,12 +984,12 @@ def f_list(drive, keyword, recursive):
                 # if file in list is folder, get it's file list
                 if f['mimeType'] == 'application/vnd.google-apps.folder':
                     # print(f['title'])
-                    f_all(drive, f['id'], file_list, False, None, None, None)
+                    f_all(drive, f['id'], file_list, False, None, None, [])
                 else:
                     file_list.append(f)
         else:
             if is_valid_id(drive, keyword):
-                f_all(drive, keyword, file_list, False, None, None, None)
+                f_all(drive, keyword, file_list, False, None, None, [])
 
         dicts = []
         for file in file_list:
@@ -1066,6 +1080,7 @@ def check_remote_dir_files_sync(drive, remote_folder_id, local_folder):
         else:
             return False
 
+
 def compare_and_change_type_show(drive,remote_files_list, local_files_list):
     for remote_file in remote_files_list:
         for local_file in local_files_list:
@@ -1086,6 +1101,7 @@ def compare_and_change_type_show(drive,remote_files_list, local_files_list):
                             remote_file['typeShow'] = "dongbo"
                 break
         if remote_file['typeShow'] == None: remote_file['typeShow'] = "dammay"
+
 
 def compare_and_change_type_show_local(drive,local_files_list,remote_files_list):
     for local_file in local_files_list:
@@ -1116,6 +1132,7 @@ def filter_none_id(local_files_list):
             local_file['typeShow'] = 'maytinh'
             result.append(local_file)
     return result
+
 
 def f_calculate_usage_of_folder(drive):
     driveAudioUsage = 0
