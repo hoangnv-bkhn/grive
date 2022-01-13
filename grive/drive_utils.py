@@ -56,6 +56,8 @@ def f_all(drive, fold_id, file_list, download, sync_folder, option, folder_list)
 
             else:  # we want to just list the files
                 # print(f['title'])
+                if folder_list is None:
+                    folder_list = []
                 folder_list.append(f)
                 f_all(drive, f['id'], file_list, False, None, None, folder_list)
         else:
@@ -219,25 +221,28 @@ def f_create(drive, addr, fold_id, rel_addr, list_f, overwrite, isSync, show_upd
 
     check_old_id = True
 
-    if len(list_f) > 0:
-        try:
-            c_id = os.getxattr(addr, 'user.id')
-            c_id = c_id.decode()
-            for i in list_f:
-                if i['id'] == c_id:
-                    check_old_id = False
-                    break      
-        except:
-            check_old_id = False
+    if list_f is not None:
+        if len(list_f) > 0:
+            try:
+                c_id = os.getxattr(addr, 'user.id')
+                c_id = c_id.decode()
+                for i in list_f:
+                    if i['id'] == c_id:
+                        check_old_id = False
+                        break      
+            except:
+                check_old_id = False
 
     # creating if it's a folder
     if os.path.isdir(addr):
+        is_root_folder = False
         sync_dir = config_utils.get_dir_sync_location()
         # print progress
         if show_update:
             print("creating folder " + rel_addr)
         check_id = False
         if os.path.join(addr) == os.path.join(sync_dir) and fold_id is None and isSync is True:
+            is_root_folder = True
             folder = drive.CreateFile()
             folder['id'] = None
             check_id = True
@@ -249,9 +254,9 @@ def f_create(drive, addr, fold_id, rel_addr, list_f, overwrite, isSync, show_upd
                 folder = drive.CreateFile({'id': fold_id})
             except:
                 check_id = False
-        if check_old_id is True:
+        if check_old_id is True and is_root_folder is False:
             check_id = False
-        if check_id is False:
+        if check_id is False and is_root_folder is False:
             # if folder to be added to root
             if fold_id is None:
                 folder = drive.CreateFile()
@@ -289,11 +294,12 @@ def f_create(drive, addr, fold_id, rel_addr, list_f, overwrite, isSync, show_upd
                 check_id = True
                 file_id = os.getxattr(addr, 'user.id')
                 file_id = file_id.decode()
-                for x in list_f:
-                    if x['id'] == file_id:
-                        if x['modifiedDate'] != datetime.utcfromtimestamp(stats.st_mtime).timestamp():
-                            checkModified = True
-                        break
+                if list_f is not None:
+                    for x in list_f:
+                        if x['id'] == file_id:
+                            if x['modifiedDate'] < datetime.utcfromtimestamp(stats.st_mtime).timestamp():
+                                checkModified = True
+                            break
                 up_file = drive.CreateFile({'id': file_id})
             except:
                 check_id = False
@@ -454,6 +460,7 @@ def f_sync(drive, addr):
                 list_l.append(i)
 
         except:
+            print(addr + " up")
             addrs = []
             addrs.append(path)
             f_up(drive, None, addrs, False)
@@ -476,10 +483,14 @@ def f_sync(drive, addr):
         for y in list_l:
             if x['id'] == y['id']:
                 stats = os.stat(y['canonicalPath'])
-                if x['modifiedDate'] != datetime.utcfromtimestamp(stats.st_mtime).timestamp():
+                print(x['modifiedDate'])
+                if x['modifiedDate'] > datetime.utcfromtimestamp(stats.st_mtime).timestamp():
                     save_location = common_utils.get_local_path(drive, x['id'], config_utils.get_dir_sync_location())
-                    if x['isFolder'] != 'folder':
+                    try:
+                        x['type']
                         f_down(drive, "-do", x['id'], save_location)
+                    except:
+                        print
                 check_f = True
                 break
         # if check_f is False:
