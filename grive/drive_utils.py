@@ -716,6 +716,7 @@ def get_info(drive, option, instance):
             'alternateLink': remote_file.get('alternateLink'),
             'parents': remote_file.get('parents'),
             'userPermission': [],
+            'modifiedDate': datetime.timestamp(datetime.strptime(remote_file['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')),
             'shared': remote_file.get('shared'),
             'ownedByMe': remote_file.get('ownedByMe'),
             'md5Checksum': remote_file.get('md5Checksum'),
@@ -742,9 +743,9 @@ def get_info(drive, option, instance):
         if not path_err and not default_opt:
             print('%s is invalid !' % instance)
 
-    print(result_local)
-    print("=====")
-    print(result_remote)
+    # print(result_local)
+    # print("=====")
+    # print(result_remote)
     # print("=====")
     # print(Path().resolve())
 
@@ -752,7 +753,6 @@ def get_info(drive, option, instance):
 
 
 def file_restore(drive, addr_list):
-    print(addr_list)
     for addr in addr_list:
         # check if file_id valid
         if is_valid_id(drive, addr):
@@ -763,7 +763,7 @@ def file_restore(drive, addr_list):
             if is_trash(drive, r_file['id']):
                 r_file.UnTrash()
                 print("%s is restored" % f_name)
-            # ele done nothing
+            # else done nothing
             else:
                 print("%s is not trash" % f_name)
                 return
@@ -1028,6 +1028,28 @@ def compare_and_change_type_show(drive,remote_files_list, local_files_list):
                 break
         if remote_file['typeShow'] == None: remote_file['typeShow'] = "dammay"
 
+def compare_and_change_type_show_2(drive,remote_files_list, local_files_list):
+    for remote_file in remote_files_list:
+        for local_file in local_files_list:
+            if remote_file['id'] == local_file['id']:
+                if re.compile('folder', re.IGNORECASE).search(remote_file['type']):
+                    if check_remote_dir_files_sync(drive,remote_file['id'],local_file['canonicalPath']):
+                        remote_file['typeShow'] = "dongbo"
+                    else:
+                        remote_file['typeShow'] = "notdongbo"
+                else:
+                    if remote_file['md5Checksum']:
+                        if remote_file['md5Checksum']  == local_file['md5Checksum']:
+                            remote_file['typeShow'] = "dongbo"
+                        else:
+                            remote_file['typeShow'] = "notdongbo"
+                    else:
+                        if remote_file['fileSize']  == local_file['fileSize']:
+                            remote_file['typeShow'] = "dongbo"
+                break
+        if remote_file['typeShow'] == None: remote_file['typeShow'] = "dammay"
+    
+
 def compare_and_change_type_show_local(drive,local_files_list,remote_files_list):
     for local_file in local_files_list:
         for remote_file in remote_files_list:
@@ -1050,34 +1072,48 @@ def compare_and_change_type_show_local(drive,local_files_list,remote_files_list)
         if local_file['typeShow'] == None: local_file['typeShow'] = "maytinh"
 
 
-def filter_none_id(local_files_list):
+def filter_local_only(local_files_list,remote_files_list):
     result = []
     for local_file in local_files_list:
         if not local_file['id']:
-            local_file['typeShow'] = 'maytinh'
+            local_file['typeShow'] = 'maytinh'  
             result.append(local_file)
+        else:
+            x = list(filter(lambda e: e['id']== local_file['id'], remote_files_list))   
+            if len(x) == 0:
+                local_file['typeShow'] = 'maytinh'  
+                result.append(local_file)
+    return result
+
+def filter_remote_only(remotes_list,local_files_list):
+    result = []
+    for remote in remotes_list:
+        x = list(filter(lambda e: e['id']== remote['id'], local_files_list))   
+        if len(x) == 0:
+            remote['typeShow'] = 'dammay'  
+            result.append(remote)
     return result
 
 def f_calculate_usage_of_folder(drive):
-    driveAudioUsage = 0
-    drivePhotoUsage = 0
-    driveMoviesUsage = 0
-    driveDocumentUsage = 0
-    driveOthersUsage = 0
+    drive_audio_usage = 0
+    drive_photo_usage = 0
+    drive_movies_usage = 0
+    drive_document_usage = 0
+    drive_others_usage = 0
 
     file_list = f_list(drive, 'root', True)
     for file in file_list:
         if common_utils.isAudioFile(file):
-            driveAudioUsage += common_utils.getFileSize(file)
+            drive_audio_usage += common_utils.getFileSize(file)
         elif common_utils.isImageFile(file):
-            drivePhotoUsage += common_utils.getFileSize(file)
+            drive_photo_usage += common_utils.getFileSize(file)
         elif common_utils.isVideoFile(file):
-            driveMoviesUsage += common_utils.getFileSize(file)
+            drive_movies_usage += common_utils.getFileSize(file)
         elif common_utils.isDocument(file):
-            driveDocumentUsage += common_utils.getFileSize(file)
+            drive_document_usage += common_utils.getFileSize(file)
         else:
-            driveOthersUsage += common_utils.getFileSize(file)
-    return driveAudioUsage, drivePhotoUsage, driveMoviesUsage, driveDocumentUsage, driveOthersUsage
+            drive_others_usage += common_utils.getFileSize(file)
+    return drive_audio_usage, drive_photo_usage, drive_movies_usage, drive_document_usage, drive_others_usage
 
 
 
