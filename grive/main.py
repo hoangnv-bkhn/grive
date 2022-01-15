@@ -7,7 +7,7 @@ import os
 import logging
 from datetime import datetime
 from pathlib import Path
-
+from googleapiclient.discovery import build
 from pydrive.drive import GoogleDrive
 from prettytable import PrettyTable
 
@@ -21,7 +21,7 @@ require_auth = [
     "-u", "-uf", "-uo",
     "-da", "-dl", "-dr",
     "-ls_files", "ls_files", "-laf",
-    "-l", "-lr", "-lp" , "-lpr", "-lf", "-lfr",
+    "-l", "-lr", "-lp", "-lpr", "-lf", "-lfr",
     "-ls_trash", "ls_trash", "-lt",
     "-ls_folder",
     "-restore", "restore",
@@ -58,7 +58,13 @@ def main():
 
     logger = logging.getLogger("Grive")
     logger.setLevel(logging.DEBUG)
-    fh = logging.FileHandler(os.path.join(os.environ['HOME'], 'Grive.log'))
+    common_utils.dir_exists(os.path.join(os.environ['HOME'], '.grive'))
+    log_path = os.path.join(os.environ['HOME'], '.grive/grive.log')
+    if not os.path.exists(log_path):
+        print(log_path)
+        with open(log_path, 'w+') as fp:
+            pass
+    fh = logging.FileHandler(log_path)
     fh.setLevel(logging.DEBUG)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     fh.setFormatter(formatter)
@@ -72,11 +78,13 @@ def main():
 
         # if argument requires authentication
         if arguments[arg_index] in require_auth:
-            gauth = auth_utils.drive_auth(0)  # parameter to reset Google Account permissions
-            drive = GoogleDrive(gauth)
+            g_auth, creds = auth_utils.drive_auth(0)  # parameter to reset Google Account permissions
+            drive = GoogleDrive(g_auth)
+            service = build('drive', 'v2', credentials=creds)
         # set drive to none for operations not requiring auth
         else:
             drive = None
+            service = None
 
         if arguments[arg_index] == "-v" or arguments[arg_index] == "-version" or arguments[arg_index] == "version":
             with open(common_utils.version_info_file) as p_file:
@@ -142,7 +150,7 @@ def main():
         elif arguments[arg_index] == "-z":
             arg_index += 1
             if is_matching(arg_index, len(arguments)):
-                drive_utils.f_sync(drive, arguments[arg_index])
+                drive_utils.f_sync(service, arguments[arg_index])
                 arg_index = len(arguments)
 
         elif arguments[arg_index] == "-d" or arguments[arg_index] == "-do" \
@@ -156,15 +164,15 @@ def main():
                         # save_location = arguments[len(arguments) - 1]
                         for argument in arguments[arg_index: len(arguments) - 1]:
                             # print(argument)
-                            drive_utils.f_down(drive, arguments[0], argument, save_location)
+                            drive_utils.downloader(drive, arguments[0], argument, save_location)
                     else:
                         print(' %s does not exist !' % arguments[len(arguments) - 1])
 
                 elif arguments[0] == "-d" or arguments[0] == "-do":
                     for argument in arguments[arg_index: len(arguments)]:
                         save_location = common_utils.get_local_path(drive, argument,
-                                                                    config_utils.get_dir_sync_location())
-                        drive_utils.f_down(drive, arguments[0], argument, save_location)
+                                                                    config_utils.get_folder_sync_path())
+                        drive_utils.downloader(drive, arguments[0], argument, save_location)
 
                 arg_index = len(arguments)  # all arguments used up by download
                 # if not drive_utils.is_valid_id(drive, arguments[len(arguments) - 1]) and len(arguments) > 2:
@@ -205,147 +213,210 @@ def main():
                 info_local, info_remote = drive_utils.get_info(drive, arguments[0], arguments[arg_index])
 
         # elif arguments[arg_index] == "-l" or arguments[arg_index] == "-lr": # l lr lp: path lpr lf:id lfr
-        elif arguments[arg_index] == "-l" or arguments[arg_index] == "-lr" or  arguments[arg_index] == "-lp" or arguments[arg_index] == "-lpr" or arguments[arg_index] == "-lf" or arguments[arg_index] == "-lfr":
+        elif arguments[arg_index] == "-l" or arguments[arg_index] == "-lr" or arguments[arg_index] == "-lp" or \
+                arguments[arg_index] == "-lpr" or arguments[arg_index] == "-lf" or arguments[arg_index] == "-lfr":
             table = PrettyTable()
-            table.field_names = ['Name', 'Id', 'Status', 'Date Modified', 'Type' , 'Size']
+            table.field_names = ['Name', 'Id', 'Status', 'Date Modified', 'Type', 'Size']
 
             remote_files_list = []
             local_files_list = []
             if (arg_index + 1) < len(arguments):
-                if arguments[arg_index] == "-l" :
+                if arguments[arg_index] == "-l":
                     arg_index += 1
-                    remote_files_list = drive_utils.f_list(drive, arguments[len(arguments) - 1], 0)
+                    remote_files_list = drive_utils.get_all_data(service, arguments[len(arguments) - 1], 0)
 
-                    root_files_list, root_folders_list = drive_utils.f_list_local(config_utils.get_dir_sync_location(), True)
-                    local_folder = list(filter(lambda e: e['id']== arguments[len(arguments) - 1] , root_folders_list))[0]
-                    local_files_list, local_folders_list = drive_utils.f_list_local(local_folder['canonicalPath'], False)
+                    root_files_list, root_folders_list = drive_utils.f_list_local(config_utils.get_folder_sync_path(),
+                                                                                  True)
+                    local_folder = list(filter(lambda e: e['id'] == arguments[len(arguments) - 1], root_folders_list))[
+                        0]
+                    local_files_list, local_folders_list = drive_utils.f_list_local(local_folder['canonicalPath'],
+                                                                                    False)
 
-                    drive_utils.compare_and_change_type_show(drive, remote_files_list, local_files_list)
+                    drive_utils.compare_and_change_type_show(service, remote_files_list, local_files_list)
                     for file in remote_files_list:
-                        table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'], common_utils.renderTypeShow(file['typeShow']),
-                                                                    common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])).strftime("%m/%d/%Y %H:%M"), file['type'].split(".")[-1], common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                        table.add_row(
+                            [(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], file['id'],
+                             common_utils.renderTypeShow(file['typeShow']),
+                             common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])).strftime(
+                                 "%m/%d/%Y %H:%M"), file['type'].split(".")[-1],
+                             common_utils.sizeof_fmt(common_utils.getFileSize(file))])
 
                 elif arguments[arg_index] == "-lr":
                     arg_index += 1
-                    remote_files_list = drive_utils.f_list(drive, arguments[len(arguments) - 1], 1)
+                    remote_files_list = drive_utils.get_all_data(service, arguments[len(arguments) - 1], 1)
 
-                    root_files_list, root_folders_list = drive_utils.f_list_local(config_utils.get_dir_sync_location(), True)
-                    local_folder = list(filter(lambda e: e['id']== arguments[len(arguments) - 1] , root_folders_list))[0]
+                    root_files_list, root_folders_list = drive_utils.f_list_local(config_utils.get_folder_sync_path(),
+                                                                                  True)
+                    local_folder = list(filter(lambda e: e['id'] == arguments[len(arguments) - 1], root_folders_list))[
+                        0]
                     local_files_list, local_folders_list = drive_utils.f_list_local(local_folder['canonicalPath'], True)
 
-                    drive_utils.compare_and_change_type_show(drive, remote_files_list, local_files_list)
+                    drive_utils.compare_and_change_type_show(service, remote_files_list, local_files_list)
                     for file in remote_files_list:
-                        table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'], common_utils.renderTypeShow(file['typeShow']),
-                                                                    common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])).strftime("%m/%d/%Y, %H:%M:%S"), file['type'].split(".")[-1], common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                        table.add_row(
+                            [(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], file['id'],
+                             common_utils.renderTypeShow(file['typeShow']),
+                             common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])).strftime(
+                                 "%m/%d/%Y, %H:%M:%S"), file['type'].split(".")[-1],
+                             common_utils.sizeof_fmt(common_utils.getFileSize(file))])
 
                 elif arguments[arg_index] == "-lp":
                     arg_index += 1
-                    local_files_list, local_folders_list = drive_utils.f_list_local(arguments[len(arguments) - 1], False)
+                    local_files_list, local_folders_list = drive_utils.f_list_local(arguments[len(arguments) - 1],
+                                                                                    False)
 
-                    root_files_list, root_folders_list = drive_utils.f_list_local(config_utils.get_dir_sync_location(), True)
-                    local_folder = list(filter(lambda e: e['canonicalPath']== arguments[len(arguments) - 1] , root_folders_list))[0]
-                    remote_files_list = drive_utils.f_list(drive, local_folder['id'], False)
+                    root_files_list, root_folders_list = drive_utils.f_list_local(config_utils.get_folder_sync_path(),
+                                                                                  True)
+                    local_folder = \
+                        list(filter(lambda e: e['canonicalPath'] == arguments[len(arguments) - 1], root_folders_list))[
+                            0]
+                    remote_files_list = drive_utils.get_all_data(service, local_folder['id'], False)
 
-                    drive_utils.compare_and_change_type_show_local(drive, local_files_list, remote_files_list)
+                    drive_utils.compare_and_change_type_show_local(service, local_files_list, remote_files_list)
 
                     for file in local_files_list:
-                        table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'], common_utils.renderTypeShow(file['typeShow']),
-                                                                    datetime.utcfromtimestamp(file['modifiedDate']), file['type'] if 'type' in file else "file", common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                        table.add_row(
+                            [(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], file['id'],
+                             common_utils.renderTypeShow(file['typeShow']),
+                             datetime.utcfromtimestamp(file['modifiedDate']),
+                             file['type'] if 'type' in file else "file",
+                             common_utils.sizeof_fmt(common_utils.getFileSize(file))])
 
                 elif arguments[arg_index] == "-lpr":
 
                     arg_index += 1
                     local_files_list, local_folders_list = drive_utils.f_list_local(arguments[len(arguments) - 1], True)
 
-                    root_files_list, root_folders_list = drive_utils.f_list_local(config_utils.get_dir_sync_location(), True)
-                    local_folder = list(filter(lambda e: e['canonicalPath'] == arguments[len(arguments) - 1] , root_folders_list))[0]
-                    remote_files_list = drive_utils.f_list(drive, local_folder['id'], True)
+                    root_files_list, root_folders_list = drive_utils.f_list_local(config_utils.get_folder_sync_path(),
+                                                                                  True)
+                    local_folder = \
+                        list(filter(lambda e: e['canonicalPath'] == arguments[len(arguments) - 1], root_folders_list))[
+                            0]
+                    remote_files_list = drive_utils.get_all_data(service, local_folder['id'], True)
 
-                    drive_utils.compare_and_change_type_show_local(drive, local_files_list, remote_files_list)
+                    drive_utils.compare_and_change_type_show_local(service, local_files_list, remote_files_list)
 
                     for file in local_files_list:
-                        table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'], common_utils.renderTypeShow(file['typeShow']),
-                                                                    datetime.utcfromtimestamp(file['modifiedDate']), file['type'] if 'type' in file else "file", common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                        table.add_row(
+                            [(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], file['id'],
+                             common_utils.renderTypeShow(file['typeShow']),
+                             datetime.utcfromtimestamp(file['modifiedDate']),
+                             file['type'] if 'type' in file else "file",
+                             common_utils.sizeof_fmt(common_utils.getFileSize(file))])
 
                 elif arguments[arg_index] == "-lf":
                     arg_index += 1
-                    root_files_list, root_folders_list = drive_utils.f_list_local(config_utils.get_dir_sync_location(), True)
-                    local_folder = list(filter(lambda e: e['id']== arguments[len(arguments) - 1] , root_folders_list))[0]
-                    local_files_list, local_folders_list = drive_utils.f_list_local(local_folder['canonicalPath'], False)
+                    root_files_list, root_folders_list = drive_utils.f_list_local(config_utils.get_folder_sync_path(),
+                                                                                  True)
+                    local_folder = list(filter(lambda e: e['id'] == arguments[len(arguments) - 1], root_folders_list))[
+                        0]
+                    local_files_list, local_folders_list = drive_utils.f_list_local(local_folder['canonicalPath'],
+                                                                                    False)
 
-                    remote_files_list = drive_utils.f_list(drive, arguments[len(arguments) - 1], False)
+                    remote_files_list = drive_utils.get_all_data(service, arguments[len(arguments) - 1], False)
 
-                    drive_utils.compare_and_change_type_show_local(drive, local_files_list, remote_files_list)
+                    drive_utils.compare_and_change_type_show_local(service, local_files_list, remote_files_list)
 
                     for file in local_files_list:
-                        table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'], common_utils.renderTypeShow(file['typeShow']),
-                                                                    datetime.utcfromtimestamp(file['modifiedDate']), file['type'] if 'type' in file else "file", common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                        table.add_row(
+                            [(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], file['id'],
+                             common_utils.renderTypeShow(file['typeShow']),
+                             datetime.utcfromtimestamp(file['modifiedDate']),
+                             file['type'] if 'type' in file else "file",
+                             common_utils.sizeof_fmt(common_utils.getFileSize(file))])
 
                 elif arguments[arg_index] == "-lfr":
                     arg_index += 1
-                    root_files_list, root_folders_list = drive_utils.f_list_local(config_utils.get_dir_sync_location(), True)
-                    local_folder = list(filter(lambda e: e['id']== arguments[len(arguments) - 1] , root_folders_list))[0]
+                    root_files_list, root_folders_list = drive_utils.f_list_local(config_utils.get_folder_sync_path(),
+                                                                                  True)
+                    local_folder = list(filter(lambda e: e['id'] == arguments[len(arguments) - 1], root_folders_list))[
+                        0]
                     local_files_list, local_folders_list = drive_utils.f_list_local(local_folder['canonicalPath'], True)
 
-                    remote_files_list = drive_utils.f_list(drive, arguments[len(arguments) - 1], True)
+                    remote_files_list = drive_utils.get_all_data(service, arguments[len(arguments) - 1], True)
 
-                    drive_utils.compare_and_change_type_show_local(drive, local_files_list, remote_files_list)
+                    drive_utils.compare_and_change_type_show_local(service, local_files_list, remote_files_list)
 
                     for file in local_files_list:
-                        table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'], common_utils.renderTypeShow(file['typeShow']),
-                                                                    datetime.utcfromtimestamp(file['modifiedDate']), file['type'] if 'type' in file else "file", common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                        table.add_row(
+                            [(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], file['id'],
+                             common_utils.renderTypeShow(file['typeShow']),
+                             datetime.utcfromtimestamp(file['modifiedDate']),
+                             file['type'] if 'type' in file else "file",
+                             common_utils.sizeof_fmt(common_utils.getFileSize(file))])
 
-            else: # truong hop khong co tham so
+            else:  # truong hop khong co tham so
                 if arguments[arg_index] == "-l":
-                    remote_files_list = drive_utils.f_list(drive, "root", 0)
-                    local_files_list, local_folders_list = drive_utils.f_list_local(config_utils.get_dir_sync_location(), False)
+                    remote_files_list = drive_utils.get_all_data(service, "root", 0)
+                    local_files_list, local_folders_list = drive_utils.f_list_local(
+                        config_utils.get_folder_sync_path(), False)
 
                     result = drive_utils.filter_none_id(local_files_list)
                     for file in result:
-                        table.add_row([(file['title'][:37] + "...") if len(file["title"])> 37 else file['title'], "", common_utils.renderTypeShow(file['typeShow']),
-                                                                    datetime.utcfromtimestamp(file['modifiedDate']), file['type'], common_utils.sizeof_fmt(common_utils.getFileSize(file))])
-                    drive_utils.compare_and_change_type_show(drive, remote_files_list, local_files_list)
+                        table.add_row([(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], "",
+                                       common_utils.renderTypeShow(file['typeShow']),
+                                       datetime.utcfromtimestamp(file['modifiedDate']), file['type'],
+                                       common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                    drive_utils.compare_and_change_type_show(service, remote_files_list, local_files_list)
 
                     for file in remote_files_list:
-                        table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'], common_utils.renderTypeShow(file['typeShow']),
-                                                                            datetime.utcfromtimestamp(file['modifiedDate']), file['type'].split(".")[-1], common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                        table.add_row(
+                            [(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], file['id'],
+                             common_utils.renderTypeShow(file['typeShow']),
+                             datetime.utcfromtimestamp(file['modifiedDate']), file.get('mimeType').split(".")[-1],
+                             common_utils.sizeof_fmt(common_utils.getFileSize(file))])
 
                 elif arguments[arg_index] == "-lr":
-                    remote_files_list = drive_utils.f_list(drive, "root", 1)
-                    local_files_list, local_folders_list = drive_utils.f_list_local(config_utils.get_dir_sync_location(), True)
-                    result= drive_utils.filter_none_id(local_files_list)
+                    remote_files_list = drive_utils.get_all_data(service, "root", 1)
+                    local_files_list, local_folders_list = drive_utils.f_list_local(
+                        config_utils.get_folder_sync_path(), True)
+                    result = drive_utils.filter_none_id(local_files_list)
                     for file in result:
-                        table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], "", common_utils.renderTypeShow(file['typeShow']),
-                                                                    datetime.utcfromtimestamp(file['modifiedDate']), 'file', common_utils.sizeof_fmt(common_utils.getFileSize(file))])
-                    drive_utils.compare_and_change_type_show(drive, remote_files_list, local_files_list)
+                        table.add_row([(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], "",
+                                       common_utils.renderTypeShow(file['typeShow']),
+                                       datetime.utcfromtimestamp(file['modifiedDate']), 'file',
+                                       common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                    drive_utils.compare_and_change_type_show(service, remote_files_list, local_files_list)
 
                     for file in remote_files_list:
-                        table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'], common_utils.renderTypeShow(file['typeShow']),
-                                                                            datetime.utcfromtimestamp(file['modifiedDate']), file['type'].split(".")[-1], common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                        table.add_row(
+                            [(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], file['id'],
+                             common_utils.renderTypeShow(file['typeShow']),
+                             datetime.utcfromtimestamp(file['modifiedDate']), file['type'].split(".")[-1],
+                             common_utils.sizeof_fmt(common_utils.getFileSize(file))])
                 elif arguments[arg_index] == "-lp" or arguments[arg_index] == "-lf":
-                    local_files_list, local_folders_list = drive_utils.f_list_local(config_utils.get_dir_sync_location(), False)
-                    remote_files_list = drive_utils.f_list(drive, 'root', False)
-                    drive_utils.compare_and_change_type_show_local(drive, local_files_list, remote_files_list)
+                    local_files_list, local_folders_list = drive_utils.f_list_local(
+                        config_utils.get_folder_sync_path(), False)
+                    remote_files_list = drive_utils.get_all_data(service, 'root', False)
+                    drive_utils.compare_and_change_type_show_local(service, local_files_list, remote_files_list)
 
                     for file in local_files_list:
-                        table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'], common_utils.renderTypeShow(file['typeShow']),
-                                                                    datetime.utcfromtimestamp(file['modifiedDate']), file['type'] if 'type' in file else "file", common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                        table.add_row(
+                            [(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], file['id'],
+                             common_utils.renderTypeShow(file['typeShow']),
+                             datetime.utcfromtimestamp(file['modifiedDate']),
+                             file['type'] if 'type' in file else "file",
+                             common_utils.sizeof_fmt(common_utils.getFileSize(file))])
 
                 elif arguments[arg_index] == "-lpr" or arguments[arg_index] == "-lfr":
-                    local_files_list, local_folders_list = drive_utils.f_list_local(config_utils.get_dir_sync_location(), True)
-                    remote_files_list = drive_utils.f_list(drive, 'root', True)
-                    drive_utils.compare_and_change_type_show_local(drive, local_files_list, remote_files_list)
+                    local_files_list, local_folders_list = drive_utils.f_list_local(
+                        config_utils.get_folder_sync_path(), True)
+                    remote_files_list = drive_utils.get_all_data(service, 'root', True)
+                    drive_utils.compare_and_change_type_show_local(service, local_files_list, remote_files_list)
 
                     for file in local_files_list:
-                        table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'], common_utils.renderTypeShow(file['typeShow']),
-                                                                    datetime.utcfromtimestamp(file['modifiedDate']), file['type'] if 'type' in file else "file", common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                        table.add_row([(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'],
+                                       file['id'], common_utils.renderTypeShow(file['typeShow']),
+                                       datetime.utcfromtimestamp(file['modifiedDate']),
+                                       file['type'] if 'type' in file else "file",
+                                       common_utils.sizeof_fmt(common_utils.getFileSize(file))])
 
             table.align = "l"
             print(table)
 
         # /home/tadanghuy/Documents/sync_grive/test
         elif arguments[arg_index] == "-usage" or arguments[arg_index] == "usage":
-            drive_audio_usage, drive_photo_usage, drive_movies_usage, drive_document_usage, drive_others_usage = drive_utils.f_calculate_usage_of_folder(drive)
+            drive_audio_usage, drive_photo_usage, drive_movies_usage, drive_document_usage, drive_others_usage = drive_utils.f_calculate_usage_of_folder(service)
             total_usage = drive_audio_usage + drive_photo_usage + drive_movies_usage + drive_document_usage + drive_others_usage
             table = PrettyTable()
             table.field_names = ['Name', 'Size']
@@ -361,13 +432,15 @@ def main():
 
         elif arguments[arg_index] == "-ls_trash" or arguments[arg_index] == "-lt" or arguments[arg_index] == "ls_trash":
             table = PrettyTable()
-            table.field_names = ['Name', 'id', 'Date Modified', 'Type' , 'Size']
+            table.field_names = ['Name', 'id', 'Date Modified', 'Type', 'Size']
 
-            trash_files_list = drive_utils.f_list(drive, "trash", 0)
+            trash_files_list = drive_utils.get_all_data(service, "trash", 0)
             for file in trash_files_list:
                 # print('%-30s | %50s | %30s | %10s' % (file['title'], file['id'], datetime.utcfromtimestamp(file['modifiedDate']), file['fileSize']))
-                table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'],
-                                                            common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])).strftime("%m/%d/%Y %H:%M"), file['type'].split(".")[-1], common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                table.add_row([(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], file['id'],
+                               common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])).strftime(
+                                   "%m/%d/%Y %H:%M"),
+                               file['type'].split(".")[-1], common_utils.sizeof_fmt(common_utils.getFileSize(file))])
             table.align = 'l'
             print(table)
         elif arguments[arg_index] == "-by_cron":
@@ -377,7 +450,7 @@ def main():
                 # add the Id to same directory on gDrive
                 jobs.by_cron(drive, arguments[arg_index])
             else:
-                jobs.by_cron(drive)
+                jobs.by_cron(service)
 
         elif arguments[arg_index] == "-restore" or arguments[arg_index] == "restore":
             arg_index += 1
@@ -393,20 +466,20 @@ def main():
         arg_index += 1
 
 
-
 def is_matching(index, len_arg):
     if index >= len_arg:
         print("Error: arguments less than what expected")
         return False
     return True
 
+
 def send_to_log(logger, LogType, LogMsg):
-    if (3 >= LogType) :
-        if (LogType == 3) :
+    if 3 >= LogType:
+        if LogType == 3:
             logger.debug(LogMsg)
-        if (LogType == 2) :
+        if LogType == 2:
             logger.info(LogMsg)
-        if (LogType == 1) :
+        if LogType == 1:
             logger.error(LogMsg)
 
 

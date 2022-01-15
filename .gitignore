@@ -10,6 +10,8 @@ grive/credential.json
 grive/long-octane-333713-d4bff4ba7c25.json
 grive/downloader.py
 grive/test.py
+grive/test2.py
+grive/token.json
 
 # temporary files which can be created if a process still has a handle open of a deleted file
 .fuse_hidden*
