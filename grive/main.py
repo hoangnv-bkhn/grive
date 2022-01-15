@@ -40,6 +40,7 @@ def main():
         import auth_utils
         import config_utils
         import drive_utils
+        import drive_services
         import jobs
         import restore_default
 
@@ -49,6 +50,7 @@ def main():
         from . import auth_utils
         from . import config_utils
         from . import drive_utils
+        from . import drive_services
         from . import jobs
         from . import restore_default
 
@@ -170,9 +172,9 @@ def main():
 
                 elif arguments[0] == "-d" or arguments[0] == "-do":
                     for argument in arguments[arg_index: len(arguments)]:
-                        save_location = common_utils.get_local_path(drive, argument,
-                                                                    config_utils.get_folder_sync_path())
-                        drive_utils.downloader(drive, arguments[0], argument, save_location)
+                        save_location = drive_services.get_local_path(service,
+                                                                      argument, config_utils.get_folder_sync_path())
+                        drive_utils.downloader(service, arguments[0], argument, save_location)
 
                 arg_index = len(arguments)  # all arguments used up by download
                 # if not drive_utils.is_valid_id(drive, arguments[len(arguments) - 1]) and len(arguments) > 2:
