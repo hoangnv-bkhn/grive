@@ -1,9 +1,12 @@
-from builtins import str
-import re
 
 import sys
 from os import path
 import os
+from concurrent.futures.thread import ThreadPoolExecutor
+
+from builtins import str
+import re
+
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -159,27 +162,37 @@ def main():
         elif arguments[arg_index] == "-d" or arguments[arg_index] == "-do" \
                 or arguments[arg_index] == "-df" or arguments[arg_index] == "-dfo":
             arg_index += 1
-            print()
+            # print()
             if is_matching(arg_index, len(arguments)):
+                id_list = []
                 if arguments[0] == "-df" or arguments[0] == "-dfo":
                     save_location = os.path.join(os.path.expanduser(Path().resolve()), arguments[len(arguments) - 1])
                     if os.path.exists(save_location):
                         # save_location = arguments[len(arguments) - 1]
                         for argument in arguments[arg_index: len(arguments) - 1]:
-                            # print(argument)
-                            drive_utils.downloader(drive, arguments[0], argument, save_location)
+                            if drive_utils.downloader(service, arguments[0], argument, save_location, id_list) is False:
+                                print("'%s' is an invalid id !" % argument)
+                        with ThreadPoolExecutor(5) as executor:
+                            executor.map(drive_services.download, id_list)
                     else:
-                        print(' %s does not exist !' % arguments[len(arguments) - 1])
+                        print('%s does not exist !' % arguments[len(arguments) - 1])
 
                 elif arguments[0] == "-d" or arguments[0] == "-do":
                     for argument in arguments[arg_index: len(arguments)]:
                         save_location = drive_services.get_local_path(service,
                                                                       argument, config_utils.get_folder_sync_path())
-                        drive_utils.downloader(service, arguments[0], argument, save_location)
+                        if save_location is not None:
+                            drive_utils.downloader(service, arguments[0], argument, save_location, id_list)
+                        else:
+                            print("'%s' is an invalid id !" % argument)
+                    # for elem in id_list:
+                    #     print(elem)
+                    with ThreadPoolExecutor(5) as executor:
+                        executor.map(drive_services.download, id_list)
 
                 arg_index = len(arguments)  # all arguments used up by download
                 # if not drive_utils.is_valid_id(drive, arguments[len(arguments) - 1]) and len(arguments) > 2:
-            print('\n')
+            # print('\n')
 
         elif arguments[arg_index] == "-s" or arguments[arg_index] == "-sr" \
                 or arguments[arg_index] == "-sw" or arguments[arg_index] == "-us":
