@@ -33,7 +33,11 @@ setup(
         'python-crontab',
         'future',
         'pyperclip',
-        'prettytable'
+        'prettytable',
+        'google',
+        'google-api-python-client',
+        'google-auth-httplib2',
+        'google-auth-oauthlib'
       ],
     dependency_links=[],
     entry_points={

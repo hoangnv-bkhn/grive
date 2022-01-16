@@ -1,8 +1,16 @@
+import json
 import sys
 import os
 from pydrive.auth import GoogleAuth
 # from dotenv import load_dotenv
 # load_dotenv()
+
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaIoBaseDownload
 
 try:
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -45,14 +53,56 @@ def drive_auth(reset):
         # initialise the saved data
         g_auth.Authorize()
 
-    return g_auth
+    if os.path.exists(common_utils.get_credential_file()) and os.path.isfile(common_utils.get_credential_file()):
+        token_file = {}
+        with open(common_utils.get_credential_file()) as json_file:
+            data = json.load(json_file)
+            token_file['token'] = data['access_token']
+            token_file['refresh_token'] = data['refresh_token']
+            token_file['token_uri'] = data['token_uri']
+            token_file['client_id'] = data['client_id']
+            token_file['client_secret'] = data['client_secret']
+            token_file['scopes'] = data['scopes']
+            token_file['expiry'] = data['token_expiry']
+            json_file.close()
+        with open(common_utils.get_access_token(), 'w') as f:
+            json.dump(token_file, f)
+
+    creds = get_user_credential()
+
+    return g_auth, creds
 
 
 def reset_account():
     if os.path.isfile(common_utils.get_credential_file()):
         os.remove(common_utils.get_credential_file())
+    if os.path.isfile(common_utils.get_access_token()):
+        os.remove(common_utils.get_access_token())
 
     drive_auth(True)
+
+
+def get_user_credential():
+    SCOPES = ['https://www.googleapis.com/auth/drive']
+    creds = None
+    # The file token.json stores the user's access and refresh tokens, and is
+    # created automatically when the authorization flow completes for the first
+    # time.
+    if os.path.exists(common_utils.get_access_token()):
+        creds = Credentials.from_authorized_user_file(common_utils.get_access_token(), SCOPES)
+    # If there are no (valid) credentials available, let the user log in.
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                common_utils.client_secrets, SCOPES)
+            creds = flow.run_local_server(port=0)
+        # Save the credentials for the next run
+        with open(common_utils.get_access_token(), 'w') as token:
+            token.write(creds.to_json())
+
+    return creds
 
 
 if __name__ == '__main__':

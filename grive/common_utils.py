@@ -41,10 +41,21 @@ def get_username():
 def get_credential_file():
     # when launched as non-package
     try:
-        return os.path.join(home, ".grive_credential.json")
+        dir_exists(os.path.join(home, ".grive"))
+        return os.path.join(home, ".grive/grive_credential.json")
     # when launched as package
     except settings.InvalidConfigError or OSError:
-        return os.path.join(home, ".grive_credential.json")
+        return os.path.join(home, ".grive/grive_credential.json")
+
+
+def get_access_token():
+    # when launched as non-package
+    try:
+        dir_exists(os.path.join(home, ".grive"))
+        return os.path.join(home, ".grive/token.json")
+    # when launched as package
+    except settings.InvalidConfigError or OSError:
+        return os.path.join(home, ".grive/token.json")
 
 
 # Extracts file name or folder name from full path
@@ -142,6 +153,11 @@ def get_folder_size(folder_path):
     return total_size
 
 
+def chunks(l, n):
+    n = max(1, n)
+    return (l[i:i+n] for i in range(0, len(l), n))
+
+
 def run_fast_scandir(folder):
     sub_folders, files = [], []
 
@@ -176,7 +192,7 @@ def check_option(option, char, length):
 
 
 def sizeof_fmt(num, suffix='B'):
-    if num == "":
+    if num == "" or num == None:
         return num
     for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
         if abs(num) < 1024.0:
