@@ -1,10 +1,9 @@
 
                                         Grive by Tokyo Team
 
-    Grive aims at making life simpler when switching from Windows to Linux
-
-    This was developed with the aim to create a free and open source Google Drive client to make things simpler and
-    users won't need to switch to other cloud file storing platforms or have to pay for commercial clients doing the same
+        Grive is a command-line client for Google Drive which lets you easily sync file between your local drive
+        and Google Drive cloud storage.
+        It lets you upload, download & share documents, photos, and other important files with anyone from anywhere.
 
         The parameters that can be used are:
 
@@ -27,12 +26,14 @@
             * -xs
                 Restore Grive to the default.
 
-            * -config : Gives option to edit the configuration file on which automatic upload and download works
-                Sync Directory: The directory where the files are downloaded and uploaded, relative to home directory
+            * -c : Gives option to edit the configuration file
+                Sync Folder: The directory where the files are synchronized
                     (e.g. for "~/Documents/sync_grive", can input "Documents/sync_grive" or absolute path)
-                    (Default is "sync_grive" directory in you Documents folder)
-                Synchronous Cycle: Integer in range 1 ~ 60
-                        (Default is '1')
+                    (Default is "sync_grive" directory in your Documents folder)
+                Synchronous Cycle (Minute): Integer in range 1 ~ 60
+                        (Default is '1' minute)
+                Network Speed Limitation: Integer in range 1 ~ 102400 KB/s
+                    (Default upload (download) is False)
                 Run at startup: [Y/N]
                     'Y' Start up with the system and vise versa
                     (Default is 'Y')
@@ -48,14 +49,14 @@
 
             * -ls_files [folder_id/"root"] : Lists all files recursively present in the folder id given
 
-            * -d [file_id1] [file_id2] ([folder]) : Downloads the given file from your Google Drive
+            * -d [file_id1] [file_id2]: Downloads the given file from your Google Drive
+                User '-do' option with overwrite mode
+                Save at the corresponding location on remote
                 Multiple files can be downloaded by putting file_ids one after the other
-                -do     : Download with overwrite mode
-                -df     : Specify the location to save the file at the end of the command
-                -dof    : Specify the location to save the file at the end of the command with overwrite mode
-                In case
-                    Don't specify [folder]  : Save at the corresponding location on remote
-                    Specify [folder]        : Save at the specified folder
+
+              -df [file_id1] [file_id2] [folder]
+                User '-dfo' option with overwrite mode
+                Specify the location to save the file at the end of the command
 
             * -u [file_name/folder_name] : Upload file/folder corresponding to the root given to Google Drive.
                 -uf: Upload file/folder to selected location on Google Drive.
@@ -67,12 +68,12 @@
             * -z [file_name/folder_name]: Sync specified folder to Google drive
 
             * -s [file_id] ([mail]) : Outputs the shareable link of the file
+                    Multiple mails can be specified by putting mail one after another
+                    Don't specify [mail] to share/unshare with type every one
                 -sr     : Share with 'reader' permission
                 -sw     : Share with 'writer' permission
-                -us     : Unshare file
-                In case
-                    Don't specify [mail]    : Share/Unshare with type every one
-                    [mail] = 'all'          : Unshare file completely
+                -us     : Unshare file ( Specified [mail] = 'all' to unshare file completely)
+
 
             * -restore [file_id] : Restore files from trash.
 

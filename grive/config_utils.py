@@ -51,7 +51,7 @@ def get_network_limitation(mode):
 
 def change_sync_dir(path):
     """
-    changes address of sync directory
+    changes address of sync folder
     Args:
         path: path of folder
     Returns:
@@ -72,9 +72,9 @@ def change_sync_dir(path):
 
 def set_sync_cycle(value):
     """
-    set value for remove post upload
+    set synchronous cycle
     Args:
-        value: True if file to be removed, false otherwise
+        value: Synchronization period in minutes
     Returns:
         True if successful, False otherwise
     """
@@ -95,9 +95,40 @@ def set_sync_cycle(value):
         return False
 
 
+def set_network_limitation(value):
+    if value is None or len(value) < 2:
+        print("Error: missing parameter")
+        return False
+    if len(value) == 2:
+        try:
+            rate = int(value[1])
+            if value[0].lower() == 'upload' and 0 < rate < 102400:
+                config['Network_Speed_Limitation']['Upload_Rate'] = rate
+                return True
+            elif value[0].lower() == 'download' and 0 < rate < 102400:
+                config['Network_Speed_Limitation']['Download_Rate'] = rate
+                return True
+            else:
+                print(" Error: Wrong parameter to change !")
+                return False
+        except:
+            if value[0].lower() == 'upload' and value[1].lower() == 'n':
+                config['Network_Speed_Limitation']['Upload_Rate'] = False
+                return True
+            elif value[0].lower() == 'download' and value[1].lower() == 'n':
+                config['Network_Speed_Limitation']['Download_Rate'] = False
+                return True
+            else:
+                print(" Error: Wrong parameter to change !")
+                return False
+    else:
+        print(" Error: Wrong parameter to change !")
+        return False
+
+
 def set_run_startup(value):
     """
-    set value for share link
+    set whether program run on startup
     Args:
         value: True if share link to be stored, false otherwise
     Returns:
@@ -123,7 +154,8 @@ def set_run_startup(value):
 option = {
     1: change_sync_dir,
     2: set_sync_cycle,
-    3: set_run_startup,
+    3: set_network_limitation,
+    4: set_run_startup,
 }
 
 
@@ -138,21 +170,29 @@ def write_config():
     print("\n\t\t\tGRIVE")
     print("\n Please look below at the options which you wish to update: ")
     print(" (Enter the number followed by value, eg. \"1 input\")")
-    print("\t1. Change Sync Directory [full path to folder]")
-    print("\t2. Set synchronous cycle [number]")
-    print("\t3. Run at startup [Y/N]")
-    print("\t4. List current settings [type \"4 ls\"]")
-    print("\n Input \"0 exit\" at anytime to exit config edit")
+    print("\t1. Change Sync Directory [Full path to folder]")
+    print("\t2. Set synchronous cycle [Number]")
+    print("\t3. Set network limitation [Mode Number/ Mode N]")
+    print("\t4. Run at startup [Y/N]")
+    print("\t5. List current settings [type \"5\"]")
+    print("\n Input \"0\" at anytime to exit config edit")
 
     while True:
         user_input = str(input(' Choice: '))
         value = None  # define value to None to catch error
         opt = -1
+        # print(user_input)
         try:
-            if len(user_input.split()) == 1:
+            elems = user_input.split()
+            if len(elems) == 1:
                 opt = int(user_input)
-            elif len(user_input.split()) > 1:
-                opt, value = list(map(str, user_input.split()))
+            elif len(elems) > 1:
+                if len(elems) > 2:
+                    opt = elems[0]
+                    value = elems[1:]
+                else:
+                    opt, value = list(map(str, user_input.split()))
+
         except ValueError:
             print("Error: Please adhere to the input format")
             continue
@@ -162,13 +202,16 @@ def write_config():
             if int(opt) == 0:
                 break
 
-            elif int(opt) == 4:
-                print("\t\t---Current Configuration---")
-                print("\tSync directory: " + config['Sync_Dir'])
-                print("\tSynchronous cycle: " + str(config['Sync_Cycle']))
+            elif int(opt) == 5:
+                print("\t\t---Configuration---")
+                print("\tSync folder: " + config['Sync_Folder'])
+                print("\tSynchronous cycle (minute): " + str(config['Sync_Cycle']))
+                print("\tNetwork Speed Limitation (KB/s)")
+                print("\t\tUpload Rate: %s" % str(config['Network_Speed_Limitation']['Upload_Rate']))
+                print("\t\tDownload Rate: %s" % str(config['Network_Speed_Limitation']['Download_Rate']))
                 print("\tRun at startup: " + str(config['Auto_Start']))
 
-            elif int(opt) not in list(range(1, 4)):
+            elif int(opt) not in list(range(1, 5)):
                 print("Error: Wrong parameters entered")
 
             elif option[int(opt)](value):
