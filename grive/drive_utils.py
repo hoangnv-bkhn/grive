@@ -993,32 +993,50 @@ def f_open(folder):
 
 
 def check_remote_dir_files_sync(service, remote_folder_id, local_folder):
-    remote_dir_files_list = get_all_data(service, remote_folder_id, True)
+    print("----------------")
+    remote_list = get_all_data(service, remote_folder_id, True)
+    remote_sub_direct_files_list = list(filter(lambda e: (not re.compile('folder', re.IGNORECASE).search(e.get('mimeType'))) and common_utils.is_parents_folder(remote_folder_id, e['parents']), remote_list))
+    remote_sub_direct_folders_list = list(filter(lambda e: (re.compile('folder', re.IGNORECASE).search(e.get('mimeType'))) and common_utils.is_parents_folder(remote_folder_id, e['parents']), remote_list))
+
     local_dir_files_list, local_folders_list = f_list_local(local_folder, True)
 
-    if len(remote_dir_files_list) != len(local_dir_files_list):
-        return False
-    else:
-        count = 0
-        for remote_file in remote_dir_files_list:
-            for local_file in local_dir_files_list:
-                if remote_file['id'] == local_file['id']:
-                    if remote_file['md5Checksum']:
-                        if remote_file['md5Checksum'] == local_file['md5Checksum']:
-                            count += 1
-                            break
-                    elif remote_file['fileSize'] == remote_file['fileSize']:
+    # print(remote_sub_direct_folders_list)
+    # print("--")
+    # print(local_folders_list)
+    # print("--")
+    # print(remote_sub_direct_files_list)
+    # print("--")
+    # print(local_folders_list)
+
+    # if len(remote_sub_direct_files_list) != len(local_dir_files_list) or len(remote_sub_direct_folders_list) != len(local_folders_list):
+    #     print("false")
+    #     return False
+    # else:
+    count = 0
+    for remote_file in remote_sub_direct_files_list:
+        for local_file in local_dir_files_list:
+            if remote_file['id'] == local_file['id']:
+                if remote_file['md5Checksum']:
+                    if remote_file['md5Checksum'] == local_file['md5Checksum']:
                         count += 1
                         break
-        if count == len(remote_dir_files_list):
-            return True
-        else:
-            return False
+                elif remote_file['fileSize'] == remote_file['fileSize']:
+                    count += 1
+                    break
+    count2 = 0
+    for remote_folder in remote_sub_direct_folders_list:
+        for local_folder in local_folders_list: 
+            if remote_folder['id'] == local_folder['id']:
+                if check_remote_dir_files_sync(service, remote_folder['id'], local_folder['canonicalPath']):
+                    count2 += 1
+                    break
+    if count == len(remote_sub_direct_files_list) and count2 == len (remote_sub_direct_folders_list):
+        return True
+    else:
+        return False    
 
 
 def compare_and_change_type_show(service, remote_files_list, local_files_list):
-    folder_tree = drive_services.get_folder_tree(service)
-    print(folder_tree)
     for remote_file in remote_files_list:
         for local_file in local_files_list:
             if remote_file['id'] == local_file['id']:
@@ -1062,6 +1080,13 @@ def compare_and_change_type_show_local(service, local_files_list, remote_files_l
                 break
         if local_file['typeShow'] == None: local_file['typeShow'] = "maytinh"
 
+def get_direct_folders_remote(service, keyword):
+    root_remote_files_list = get_all_data(service, keyword, 0)
+    return list(filter(lambda e: e['mimeType'] == "application/vnd.google-apps.folder"))
+
+def show(service, files_list, keyword):
+    # direct_folder =  get_direct_folders_remote(service, keyword)
+    common_utils.print_table_remote(files_list)
 
 def filter_local_only(local_files_list,remote_files_list):
     result = []
