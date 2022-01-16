@@ -92,9 +92,6 @@ def get_raw_data(service, instance, recursive):
 
 def download(service, file_id, file_name, save_location, mimetype=None):
     try:
-        creds = auth_utils.get_user_credential()
-        service = build('drive', 'v2', credentials=creds)
-
         if mimetype is not None:
             request = service.files().export_media(fileId=file_id,
                                                    mimeType=mimetype)

@@ -121,23 +121,9 @@ def downloader(service, option, instance_id, save_folder):
 
                 # f_all(drive, remote_id, None, True, save_location, option, [])
                 file_contained = drive_services.get_files_in_folder(service, instance_id)
-                print(len(file_contained))
-                chunks = common_utils.chunks(file_contained, 5)
-                for elem in chunks:
-                    print(len(elem))
-                    for item in elem:
-                        # location = drive_services.get_local_path(service, item.get('id'),
-                        #                                          config_utils.get_folder_sync_path())
-                        t = threading.Thread(target=downloader, args=(service, option, item.get('id'), drive_services.get_local_path(service, item.get('id'),
-                                                                 config_utils.get_folder_sync_path()),))
-                        # t.setDaemon(True)
-                        t.start()
-                    for t in threading.enumerate():
-                        print('joining %s', t.getName())
-                        t.join()
-                # for item in file_contained:
-                #     location = drive_services.get_local_path(service, item.get('id'), config_utils.get_folder_sync_path())
-                #     downloader(service, option, item.get('id'), location)
+                for item in file_contained:
+                    location = drive_services.get_local_path(service, item.get('id'), config_utils.get_folder_sync_path())
+                    downloader(service, option, item.get('id'), location)
 
         else:
             is_workspace_document = False
@@ -171,7 +157,7 @@ def downloader(service, option, instance_id, save_folder):
                 save_location = os.path.join(save_folder, file_local_name)
                 if os.path.exists(save_location):
                     save_location = common_utils.get_dup_name(save_folder, file_local_name)
-                print("Download '%s' in '%s' !" % (instance.get('title'), save_location))
+                print("Download '%s' in '%s'" % (instance.get('title'), save_location))
                 if is_workspace_document:
                     if drive_services.download(service, instance.get('id'), instance.get('title'),
                                                save_location, mime_swap[instance['mimeType']]):
