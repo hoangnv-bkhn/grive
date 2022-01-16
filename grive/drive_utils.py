@@ -16,194 +16,170 @@ try:
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     import common_utils
     import config_utils
+    import auth_utils
     import drive_services
 except ImportError:
     from . import common_utils
     from . import config_utils
+    from . import auth_utils
     from . import drive_services
 
 
-def f_all(drive, fold_id, file_list, download, sync_folder, option, folder_list):
-    """Recursively download or just list files in folder
+# def f_all(drive, fold_id, file_list, download, sync_folder, option, folder_list):
+#     """Recursively download or just list files in folder
+#
+#         :param drive: Google Drive instance
+#         :param fold_id: id of folder to search
+#         :param file_list: initial list to store list of file when search
+#         :param download: True if downloads, False if just recursively list file
+#         :param sync_folder: folder to store when download
+#         :param option: option download (overwrite or not)
+#         :param folder_list: initial list to store list of folder when search
+#
+#         :returns: List of file store in file_list param
+#     """
+#
+#     q_string = "'%s' in parents and trashed=false" % fold_id
+#     for f in drive.ListFile({'q': q_string}).GetList():
+#         if f['mimeType'] == 'application/vnd.google-apps.folder':
+#             # print(f['title'])
+#             if download:  # if we are to download the files
+#                 save_location = os.path.join(sync_folder, f['title'])
+#                 if os.path.exists(save_location):
+#                     save_location = common_utils.get_dup_name(sync_folder, os.path.basename(sync_folder))
+#
+#                 common_utils.dir_exists(save_location)
+#                 os.setxattr(save_location, 'user.id', str.encode(f['id']))
+#
+#                 stats = os.stat(save_location)
+#                 os.utime(save_location, (stats.st_atime, common_utils.utc2local(
+#                     datetime.strptime(f['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
+#
+#                 f_all(drive, f['id'], None, True, save_location, option, folder_list)
+#
+#             else:  # we want to just list the files
+#                 # print(f['title'])
+#                 folder_list.append(f)
+#                 f_all(drive, f['id'], file_list, False, None, None, folder_list)
+#         else:
+#             if download:
+#                 downloader(drive, option, f['id'], sync_folder)
+#             else:
+#                 file_list.append(f)
 
-        :param drive: Google Drive instance
-        :param fold_id: id of folder to search
-        :param file_list: initial list to store list of file when search
-        :param download: True if downloads, False if just recursively list file
-        :param sync_folder: folder to store when download
-        :param option: option download (overwrite or not)
-        :param folder_list: initial list to store list of folder when search
 
-        :returns: List of file store in file_list param
-    """
+def downloader(service, option, instance_id, save_folder, id_list=None):
+    if id_list is None:
+        id_list = []
+    try:
 
-    q_string = "'%s' in parents and trashed=false" % fold_id
-    for f in drive.ListFile({'q': q_string}).GetList():
-        if f['mimeType'] == 'application/vnd.google-apps.folder':
-            # print(f['title'])
-            if download:  # if we are to download the files
-                save_location = os.path.join(sync_folder, f['title'])
+        instance = service.files().get(fileId=instance_id).execute()
+        # open mime_swap dictionary for changing mimeType if required
+        with open(common_utils.mime_dict) as f:
+            mime_swap = json.load(f)
+
+        overwrite = False
+        if common_utils.check_option(option, 'o', 3) or common_utils.check_option(option, 'o', 4):
+            overwrite = True
+
+        has_in_local = False
+
+        remote_name = instance.get('title')
+        remote_id = instance.get('id')
+
+        # checking if the specified id is a folder
+        if instance['mimeType'] == mime_swap['folder']:
+            folder_local_name = remote_name
+
+            local_files, local_folders = f_list_local(save_folder, 0)
+            for elem in local_files:
+                if elem['id'] == remote_id:
+                    has_in_local = True
+                    folder_local_name = elem['title']
+
+            folder_path = os.path.join(save_folder, folder_local_name)
+            # print(folder_path)
+            flag = True
+            if has_in_local:
+                if overwrite:
+                    if os.path.isdir(folder_path):
+                        shutil.rmtree(folder_path)
+                        # print("Recreating folder %s in %s" % (remote_name, save_folder))
+                else:
+                    flag = False
+                    print("Folder '%s' already present in %s" % (instance['title'], save_folder))
+            else:
+                print("Creating folder %s in %s" % (remote_name, save_folder))
+
+            if flag:
+                save_location = folder_path
                 if os.path.exists(save_location):
-                    save_location = common_utils.get_dup_name(sync_folder, os.path.basename(sync_folder))
+                    save_location = common_utils.get_dup_name(save_folder, os.path.basename(folder_path))
 
                 common_utils.dir_exists(save_location)
-                os.setxattr(save_location, 'user.id', str.encode(f['id']))
-
+                os.setxattr(save_location, 'user.id', str.encode(remote_id))
                 stats = os.stat(save_location)
                 os.utime(save_location, (stats.st_atime, common_utils.utc2local(
-                    datetime.strptime(f['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
+                    datetime.strptime(instance['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
 
-                f_all(drive, f['id'], None, True, save_location, option, folder_list)
+                file_contained = drive_services.get_files_in_folder(service, instance_id)
+                for item in file_contained:
+                    location = drive_services.get_local_path(service, item.get('id'), config_utils.get_folder_sync_path())
+                    downloader(service, option, item.get('id'), location, id_list)
 
-            else:  # we want to just list the files
-                # print(f['title'])
-                folder_list.append(f)
-                f_all(drive, f['id'], file_list, False, None, None, folder_list)
         else:
-            if download:
-                downloader(drive, option, f['id'], sync_folder)
+            is_workspace_document = False
+            if instance.get('mimeType') in mime_swap:
+                # open formats.json for adding custom format
+                with open(common_utils.format_dict) as f:
+                    format_add = json.load(f)
+                # changing file name to suffix file format
+                file_local_name = remote_name + format_add[instance['mimeType']]
+                is_workspace_document = True
             else:
-                file_list.append(f)
+                file_local_name = remote_name
 
+            local_files, local_folders = f_list_local(save_folder, 0)
+            for elem in local_files:
+                if elem['id'] == remote_id:
+                    has_in_local = True
+                    file_local_name = elem['title']
 
-def downloader(drive, option, file_id, save_folder):
-    # print(sync_folder)
-    # check if file id not valid
-    if not is_valid_id(drive, file_id):
-        print(" %s is an invalid id of file or folder !" % file_id)
-        return
+            flag = True
+            if has_in_local:
+                if overwrite:
+                    if os.path.isfile(os.path.join(save_folder, file_local_name)):
+                        os.remove(os.path.join(save_folder, file_local_name))
+                else:
+                    flag = False
+                    print(" %s already present in %s" % (file_local_name, save_folder))
 
-    d_file = drive.CreateFile({'id': file_id})
-
-    # open mime_swap dictionary for changing mimeType if required
-    with open(common_utils.mime_dict) as f:
-        mime_swap = json.load(f)
-
-    overwrite = False
-    if common_utils.check_option(option, 'o', 3) or common_utils.check_option(option, 'o', 4):
-        overwrite = True
-
-    # checking if the specified id belongs to a folder
-    if d_file['mimeType'] == mime_swap['folder']:
-        # folder_name = d_file['title']
-
-        folder_remote_name = d_file['title']
-        folder_remote_id = d_file['id']
-        has_in_local = False
-        folder_local_name = folder_remote_name
-
-        # folder_path = os.path.join(sync_folder, folder_name)
-
-        local_files, local_folders = f_list_local(save_folder, 0)
-        for elem in local_files:
-            if elem['id'] == folder_remote_id:
-                has_in_local = True
-                folder_local_name = elem['title']
-                # print(123)
-
-        folder_path = os.path.join(save_folder, folder_local_name)
-        # print(folder_path)
-        flag = True
-        if has_in_local:
-            if overwrite:
-                if os.path.isdir(folder_path):
-                    # print(folder_path)
-                    shutil.rmtree(folder_path)
-                    print(" Recreating folder %s in %s" % (folder_remote_name, save_folder))
-            else:
-                flag = False
-                print(" Folder '%s' already present in %s" % (d_file['title'], save_folder))
-        else:
-            print(" Creating folder %s in %s" % (folder_remote_name, save_folder))
-
-        if flag:
-            save_location = folder_path
-            if os.path.exists(save_location):
-                # print(456)
-                save_location = common_utils.get_dup_name(save_folder, os.path.basename(folder_path))
-            # print(save_location)
-            common_utils.dir_exists(save_location)
-            os.setxattr(save_location, 'user.id', str.encode(folder_remote_id))
-
-            stats = os.stat(save_location)
-            os.utime(save_location, (stats.st_atime, common_utils.utc2local(
-                datetime.strptime(d_file['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
-
-            f_all(drive, folder_remote_id, None, True, save_location, option, [])
-
-    # for online file types like Gg Docs, Gg Sheet..etc
-    elif d_file['mimeType'] in mime_swap:
-        # open formats.json for adding custom format
-        with open(common_utils.format_dict) as f:
-            format_add = json.load(f)
-
-        file_remote_name = d_file['title']
-        file_remote_id = d_file['id']
-        has_in_local = False
-        file_local_name = file_remote_name
-
-        # changing file name to suffix file format
-        f_name = file_remote_name + format_add[d_file['mimeType']]
-        # f_name = d_file['title']
-
-        local_files, local_folders = f_list_local(save_folder, 0)
-        for elem in local_files:
-            if elem['id'] == file_remote_id:
-                has_in_local = True
-                file_local_name = elem['title']
-
-        flag = True
-        if has_in_local:
-            if overwrite:
-                if os.path.isfile(os.path.join(save_folder, file_local_name)):
-                    os.remove(os.path.join(save_folder, file_local_name))
-            else:
-                flag = False
-                print(" %s already present in %s" % (f_name, save_folder))
-        if flag:
-            save_location = os.path.join(save_folder, f_name)
-            if os.path.exists(save_location):
-                save_location = common_utils.get_dup_name(save_folder, f_name)
-
-            print(" Downloading " + save_location)
-            d_file.GetContentFile(save_location,
-                                  mimetype=mime_swap[d_file['mimeType']])
-            os.setxattr(save_location, 'user.id', str.encode(file_remote_id))
-            stats = os.stat(save_location)
-            os.utime(save_location, (stats.st_atime, common_utils.utc2local(
-                datetime.strptime(d_file['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
-
-    else:
-        file_remote_name = d_file['title']
-        file_remote_id = d_file['id']
-        file_local_name = file_remote_name
-        has_in_local = False
-
-        local_files, local_folders = f_list_local(save_folder, 0)
-        for elem in local_files:
-            if elem['id'] == file_remote_id:
-                has_in_local = True
-                file_local_name = elem['title']
-
-        flag = True
-        if has_in_local:
-            if overwrite:
-                if os.path.isfile(os.path.join(save_folder, file_local_name)):
-                    os.remove(os.path.join(save_folder, file_local_name))
-            else:
-                flag = False
-                print(" %s already present in %s" % (d_file['title'], save_folder))
-
-        if flag:
-            save_location = os.path.join(save_folder, file_remote_name)
-            if os.path.exists(save_location):
-                save_location = common_utils.get_dup_name(save_folder, file_remote_name)
-            print(" Downloading " + save_location)
-            d_file.GetContentFile(save_location)
-            os.setxattr(save_location, 'user.id', str.encode(file_remote_id))
-            stats = os.stat(save_location)
-            os.utime(save_location, (stats.st_atime, common_utils.utc2local(
-                datetime.strptime(d_file['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
+            if flag:
+                save_location = os.path.join(save_folder, file_local_name)
+                if os.path.exists(save_location):
+                    save_location = common_utils.get_dup_name(save_folder, file_local_name)
+                # print("Download '%s' in '%s' !" % (instance.get('title'), save_location))
+                if is_workspace_document:
+                    elem = {
+                        'id': instance.get('id'),
+                        'title': instance.get('title'),
+                        'saveLocation': save_location,
+                        'modifiedDate': instance.get('modifiedDate'),
+                        'mimeType': mime_swap[instance['mimeType']]
+                    }
+                    id_list.append(elem)
+                else:
+                    elem = {
+                        'id': instance.get('id'),
+                        'title': instance.get('title'),
+                        'saveLocation': save_location,
+                        'modifiedDate': instance.get('modifiedDate'),
+                        'mimeType': None
+                    }
+                    id_list.append(elem)
+    except:
+        # print(" %s is an invalid id !" % instance_id)
+        return False
 
 
 def uploader(service, option, path, parent_id, id_list=None):
@@ -929,7 +905,7 @@ def get_list_folders(drive, keyword):
             if f['mimeType'] == 'application/vnd.google-apps.folder':
                 # print(f['title'])
                 folder_list.append(f)
-                f_all(drive, f['id'], file_list, False, None, None, folder_list)
+                # f_all(drive, f['id'], file_list, False, None, None, folder_list)
             else:
                 file_list.append(f)
 

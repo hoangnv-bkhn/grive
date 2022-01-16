@@ -1,37 +1,29 @@
 import io
 import os.path
 import sys
+import threading
+from datetime import datetime
 
-from googleapiclient import errors
 from googleapiclient.http import MediaIoBaseDownload
-from googleapiclient.http import MediaFileUpload
-from googleapiclient.http import HttpRequest
+from googleapiclient.discovery import build
 
 try:
     # set directory for relativistic import
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     import common_utils
     import config_utils
+    import auth_utils
 except ImportError:
     from . import common_utils
     from . import config_utils
+    from . import auth_utils
 
 
 def get_all_remote_folder(service):
-    result = []
-    page_token = None
-    while True:
-        response = service.files().list(q="mimeType='application/vnd.google-apps.folder' and trashed = false",
-                                        spaces='drive',
-                                        fields='nextPageToken, items',
-                                        pageToken=page_token).execute()
-        for file in response.get('items', []):
-            result.append(file)
-        page_token = response.get('nextPageToken', None)
-        if page_token is None:
-            break
+    query_all_folders = "mimeType='application/vnd.google-apps.folder' and trashed = false and 'me' in owners"
+    all_folders = query_google_api(service, query_all_folders)
 
-    return result
+    return all_folders
 
 
 def get_files_in_folder(service, folder_id):
@@ -43,15 +35,15 @@ def get_files_in_folder(service, folder_id):
         for elem in folder_tree[folder_id]:
             folders.append(elem)
     if len(folders) > 0:
-        chunks = common_utils.chunks(folders, 10)
+        chunks = common_utils.chunks(folders, 100)
         for elem in chunks:
-            query = ''
+            query = '('
             for i in range(len(elem) - 1):
-                query += "'" + elem[i] + "'" + " in parents and trashed = false or "
-            query += "'" + elem[len(elem) - 1] + "'" + " in parents "
-            query += "and trashed = false"
+                query += "'" + elem[i] + "' in parents or "
+            query += "'" + elem[len(elem) - 1] + "'" + " in parents) "
+            query += "and mimeType != 'application/vnd.google-apps.folder' and trashed = false"
             # print(query)
-            result.append(query_google_api(service, query))
+            result += query_google_api(service, query)
     return result
 
 
@@ -70,7 +62,7 @@ def get_raw_data(service, instance, recursive):
                 for elem in folder_tree[instance]:
                     folders.append(elem)
             if len(folders) > 0:
-                chunks = common_utils.chunks(folders, 10)
+                chunks = common_utils.chunks(folders, 100)
                 for elem in chunks:
                     query = ''
                     for i in range(len(elem) - 1):
@@ -78,7 +70,7 @@ def get_raw_data(service, instance, recursive):
                     query += "'" + elem[len(elem) - 1] + "'" + " in parents "
                     query += "and trashed = false"
                     # print(query)
-                    result.append(query_google_api(service, query))
+                    result += query_google_api(service, query)
             return result
 
     else:
@@ -100,13 +92,18 @@ def get_raw_data(service, instance, recursive):
         return result
 
 
-def download(service, file_id, save_location, mimetype=None):
+# def download(service, file_id, file_name, save_location, mimetype=None):
+def download(instance):
     try:
-        if mimetype is not None:
-            request = service.files().export_media(fileId=file_id,
-                                                   mimeType=mimetype)
+        # print("Thread : {}".format(threading.current_thread().name))
+        creds = auth_utils.get_user_credential()
+        service = build('drive', 'v2', credentials=creds)
+
+        if instance.get('mimeType') is not None:
+            request = service.files().export_media(fileId=instance.get('id'),
+                                                   mimeType=instance.get('mimeType'))
         else:
-            request = service.files().get_media(fileId=file_id)
+            request = service.files().get_media(fileId=instance.get('id'))
 
         fd = io.BytesIO()
         download_rate = config_utils.get_network_limitation('download')
@@ -118,14 +115,19 @@ def download(service, file_id, save_location, mimetype=None):
         done = False
         while done is False:
             status, done = downloader.next_chunk()
-            print("Download %d%%." % int(status.progress() * 100))
+            print("Download %s %d%%." % (instance.get('title'), int(status.progress() * 100)))
         fd.seek(0)
 
-        with open(save_location, 'wb') as f:
+        with open(instance.get('saveLocation'), 'wb') as f:
             f.write(fd.read())
             f.close()
     except:
         return False
+
+    os.setxattr(instance.get('saveLocation'), 'user.id', str.encode(instance.get('id')))
+    stats = os.stat(instance.get('saveLocation'))
+    os.utime(instance.get('saveLocation'), (stats.st_atime, common_utils.utc2local(
+        datetime.strptime(instance.get('modifiedDate'), '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
 
     return True
 
@@ -168,9 +170,70 @@ def get_folder_tree(service):
         if elem['id'] not in tree:
             tree[elem['id']] = []
     for elem in folders:
-        if elem['parents'][0]['id'] in tree:
+        if len(elem['parents']) > 0 and elem['parents'][0]['id'] in tree:
             tree[elem['parents'][0]['id']].append(elem['id'])
     return tree
+
+
+def get_cloud_path(all_folders, instance_id, path=None):
+    check = False
+    elem = {}
+    if path is None:
+        path = []
+    for folder in all_folders:
+        if folder.get('id') == instance_id:
+            check = True
+            elem['id'] = folder.get('id')
+            elem['name'] = folder.get('title')
+            elem['parents_id'] = folder.get('parents')[0]['id']
+            path.insert(0, elem)
+    if check:
+        get_cloud_path(all_folders, elem.get('parents_id'), path)
+    else:
+        return False
+
+
+def get_local_path(service, instance_id, sync_dir):
+    """Get tree folder from cloud of this instance.
+
+            :param service: Google Drive instance
+            :param instance_id: id of file or folder
+            :param sync_dir: default sync directory
+
+            :returns: corresponding canonical path of instance locally
+    """
+    try:
+        instance = service.files().get(fileId=instance_id).execute()
+        instance_parent = instance.get('parents')[0]['id']
+        # print(instance_parent)
+        rel_path = []
+        all_folders = get_all_remote_folder(service)
+        get_cloud_path(all_folders, instance_parent, rel_path)
+        # print(rel_path)
+
+        for p in rel_path:
+            check = False
+            for file in os.listdir(sync_dir):
+                try:
+                    if os.getxattr(os.path.join(sync_dir, file), 'user.id').decode() == p['id']:
+                        check = True
+                        sync_dir = os.path.join(sync_dir, file)
+                except:
+                    continue
+
+            if not check:
+                if os.path.exists(os.path.join(sync_dir, p['name'])):
+                    sync_dir = common_utils.get_dup_name(sync_dir, p['name'])
+                else:
+                    sync_dir = os.path.join(sync_dir, p['name'])
+                common_utils.dir_exists(sync_dir)
+                os.setxattr(sync_dir, 'user.id', str.encode(p['id']))
+
+        # dir_exists(sync_dir)
+        # print(sync_dir)
+        return sync_dir
+    except:
+        return None
 
 
 def query_google_api(service, query):
@@ -182,6 +245,7 @@ def query_google_api(service, query):
                                         fields='nextPageToken, items',
                                         pageToken=page_token).execute()
         for file in response.get('items', []):
+            # print(file['title'], file['id'])
             result.append(file)
         page_token = response.get('nextPageToken', None)
         if page_token is None:
