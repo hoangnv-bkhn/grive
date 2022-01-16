@@ -21,36 +21,48 @@ def read_config():
     return temp
 
 
-def get_dir_sync_location():
+def get_folder_sync_path():
     # Get address of sync folder
-    config = read_config()
-    addr = os.path.join(os.path.expanduser('~'), config['Sync_Dir'])
-    # Making directory if it doesn't exist
-    common_utils.dir_exists(addr)
+    config_file = read_config()
+    sync_folder_path = os.path.join(os.path.expanduser('~'), config_file['Sync_Folder'])
+    # Making folder if it doesn't exist
+    common_utils.dir_exists(sync_folder_path)
 
-    return addr
+    return sync_folder_path
 
 
 def get_sync_cycle():
-    config = read_config()
-    cycle = os.path.join(os.path.expanduser('~'), config['Sync_Cycle'])
+    config_file = read_config()
+    cycle = config_file['Sync_Cycle']
     return cycle
 
 
-def change_sync_dir(addr):
+def get_network_limitation(mode):
+    config_file = read_config()
+    if mode == "download":
+        download_rate = config_file['Network_Speed_Limitation']['Download_Rate']
+        return download_rate
+    elif mode == "upload":
+        upload_rate = config_file['Network_Speed_Limitation']['Upload_Rate']
+        return upload_rate
+    else:
+        return None
+
+
+def change_sync_dir(path):
     """
     changes address of sync directory
     Args:
-        addr: path of folder
+        path: path of folder
     Returns:
         True if successful, False otherwise
     """
-    if addr is None:
+    if path is None:
         print("Error: missing parameter")
         return False
 
-    if os.path.isdir(addr):
-        config['Sync_Dir'] = addr
+    if os.path.isdir(path):
+        config['Sync_Dir'] = path
         return True
 
     else:
