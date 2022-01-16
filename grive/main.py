@@ -121,22 +121,16 @@ def main():
             restore_default.restore_default()
 
         elif arguments[arg_index] == "-u" or arguments[arg_index] == "-uf" or arguments[arg_index] == "-uo":
-            folder_id = None
-            mode = False
-            if arguments[arg_index] == "-uo":
-                mode = True
             if arguments[arg_index] == "-uf":
-                folder_id = arguments[len(arguments) - 1]
-                arg_index += 2
-            else:
                 arg_index += 1
+
             if is_matching(arg_index, len(arguments)):
-                if arguments[arg_index] == "-uf":
-                    drive_utils.f_up(drive, folder_id, arguments[arg_index:len(arguments) - 1], mode)
-                    arg_index = len(arguments)
-                else:
-                    drive_utils.f_up(drive, folder_id, arguments[arg_index:len(arguments)], mode)
-                    arg_index = len(arguments)
+                print(arguments[len(arguments) - 1])
+                drive_utils.uploader(service, "uof", arguments[len(arguments) - 1], None, None)
+                arg_index = len(arguments)
+                # else:
+                #     drive_utils.f_up(drive, folder_id, arguments[arg_index:len(arguments)], mode)
+                #     arg_index = len(arguments)
 
         elif arguments[arg_index] == "-q" or arguments[arg_index] == '-qc':
             arg_index += 1
@@ -416,7 +410,8 @@ def main():
 
         # /home/tadanghuy/Documents/sync_grive/test
         elif arguments[arg_index] == "-usage" or arguments[arg_index] == "usage":
-            drive_audio_usage, drive_photo_usage, drive_movies_usage, drive_document_usage, drive_others_usage = drive_utils.f_calculate_usage_of_folder(service)
+            drive_audio_usage, drive_photo_usage, drive_movies_usage, drive_document_usage, drive_others_usage = drive_utils.f_calculate_usage_of_folder(
+                service)
             total_usage = drive_audio_usage + drive_photo_usage + drive_movies_usage + drive_document_usage + drive_others_usage
             table = PrettyTable()
             table.field_names = ['Name', 'Size']
