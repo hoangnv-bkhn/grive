@@ -1,6 +1,8 @@
 import io
 import os.path
 import sys
+import threading
+from datetime import datetime
 
 from googleapiclient.http import MediaIoBaseDownload
 from googleapiclient.discovery import build
@@ -90,13 +92,18 @@ def get_raw_data(service, instance, recursive):
         return result
 
 
-def download(service, file_id, file_name, save_location, mimetype=None):
+# def download(service, file_id, file_name, save_location, mimetype=None):
+def download(instance):
     try:
-        if mimetype is not None:
-            request = service.files().export_media(fileId=file_id,
-                                                   mimeType=mimetype)
+        # print("Thread : {}".format(threading.current_thread().name))
+        creds = auth_utils.get_user_credential()
+        service = build('drive', 'v2', credentials=creds)
+
+        if instance.get('mimeType') is not None:
+            request = service.files().export_media(fileId=instance.get('id'),
+                                                   mimeType=instance.get('mimeType'))
         else:
-            request = service.files().get_media(fileId=file_id)
+            request = service.files().get_media(fileId=instance.get('id'))
 
         fd = io.BytesIO()
         download_rate = config_utils.get_network_limitation('download')
@@ -108,14 +115,19 @@ def download(service, file_id, file_name, save_location, mimetype=None):
         done = False
         while done is False:
             status, done = downloader.next_chunk()
-            print("Download %s %d%%." % (file_name, int(status.progress() * 100)))
+            print("Download %s %d%%." % (instance.get('title'), int(status.progress() * 100)))
         fd.seek(0)
 
-        with open(save_location, 'wb') as f:
+        with open(instance.get('saveLocation'), 'wb') as f:
             f.write(fd.read())
             f.close()
     except:
         return False
+
+    os.setxattr(instance.get('saveLocation'), 'user.id', str.encode(instance.get('id')))
+    stats = os.stat(instance.get('saveLocation'))
+    os.utime(instance.get('saveLocation'), (stats.st_atime, common_utils.utc2local(
+        datetime.strptime(instance.get('modifiedDate'), '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
 
     return True
 
@@ -159,35 +171,38 @@ def get_local_path(service, instance_id, sync_dir):
 
             :returns: corresponding canonical path of instance locally
     """
-    instance = service.files().get(fileId=instance_id).execute()
-    instance_parent = instance.get('parents')[0]['id']
-    # print(instance_parent)
-    rel_path = []
-    all_folders = get_all_remote_folder(service)
-    get_cloud_path(all_folders, instance_parent, rel_path)
-    # print(rel_path)
+    try:
+        instance = service.files().get(fileId=instance_id).execute()
+        instance_parent = instance.get('parents')[0]['id']
+        # print(instance_parent)
+        rel_path = []
+        all_folders = get_all_remote_folder(service)
+        get_cloud_path(all_folders, instance_parent, rel_path)
+        # print(rel_path)
 
-    for p in rel_path:
-        check = False
-        for file in os.listdir(sync_dir):
-            try:
-                if os.getxattr(os.path.join(sync_dir, file), 'user.id').decode() == p['id']:
-                    check = True
-                    sync_dir = os.path.join(sync_dir, file)
-            except:
-                continue
+        for p in rel_path:
+            check = False
+            for file in os.listdir(sync_dir):
+                try:
+                    if os.getxattr(os.path.join(sync_dir, file), 'user.id').decode() == p['id']:
+                        check = True
+                        sync_dir = os.path.join(sync_dir, file)
+                except:
+                    continue
 
-        if not check:
-            if os.path.exists(os.path.join(sync_dir, p['name'])):
-                sync_dir = common_utils.get_dup_name(sync_dir, p['name'])
-            else:
-                sync_dir = os.path.join(sync_dir, p['name'])
-            common_utils.dir_exists(sync_dir)
-            os.setxattr(sync_dir, 'user.id', str.encode(p['id']))
+            if not check:
+                if os.path.exists(os.path.join(sync_dir, p['name'])):
+                    sync_dir = common_utils.get_dup_name(sync_dir, p['name'])
+                else:
+                    sync_dir = os.path.join(sync_dir, p['name'])
+                common_utils.dir_exists(sync_dir)
+                os.setxattr(sync_dir, 'user.id', str.encode(p['id']))
 
-    # dir_exists(sync_dir)
-    # print(sync_dir)
-    return sync_dir
+        # dir_exists(sync_dir)
+        # print(sync_dir)
+        return sync_dir
+    except:
+        return None
 
 
 def query_google_api(service, query):
