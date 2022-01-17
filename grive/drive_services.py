@@ -5,6 +5,7 @@ import threading
 from datetime import datetime
 
 from googleapiclient.http import MediaIoBaseDownload
+from googleapiclient.http import MediaFileUpload
 from googleapiclient.discovery import build
 
 try:
@@ -158,8 +159,7 @@ def upload(service, path, parent_id, mime_type):
                 sys.stdout.write("\rUpload %d%% complete." % int(status.progress() * 100))
                 sys.stdout.flush()
         return True
-    except errors.HttpError as error:
-        print(error)
+    except:
         return False
 
 
@@ -191,6 +191,7 @@ def get_cloud_path(all_folders, instance_id, path=None):
         get_cloud_path(all_folders, elem.get('parents_id'), path)
     else:
         return False
+    print(path)
 
 
 def get_local_path(service, instance_id, sync_dir):

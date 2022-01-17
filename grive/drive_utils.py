@@ -124,7 +124,8 @@ def downloader(service, option, instance_id, save_folder, id_list=None):
 
                 file_contained = drive_services.get_files_in_folder(service, instance_id)
                 for item in file_contained:
-                    location = drive_services.get_local_path(service, item.get('id'), config_utils.get_folder_sync_path())
+                    location = drive_services.get_local_path(service, item.get('id'),
+                                                             config_utils.get_folder_sync_path())
                     downloader(service, option, item.get('id'), location, id_list)
 
         else:
@@ -185,74 +186,57 @@ def downloader(service, option, instance_id, save_folder, id_list=None):
 def uploader(service, option, path, parent_id, id_list=None):
     try:
         overwrite = False
+        is_local_sync = False
         if os.path.exists(path) is False:
             return False
         if id_list is None:
             id_list = []
         if common_utils.check_option(option, 'o', 3) or common_utils.check_option(option, 'o', 4):
             overwrite = True
-        is_local_sync = False
         if os.path.normpath(config_utils.get_folder_sync_path()) in os.path.normpath(path):
             is_local_sync = True
-        if overwrite is False and is_local_sync is False:
+        if overwrite is False:
             try:
                 f_id = os.getxattr(path, 'user.id')
                 f_id = f_id.decode()
             except:
                 f_id = None
             if f_id is not None:
+                file_info, folder_info = get_list_file_for_sync(service, path, 'remote')
                 if os.path.isdir(path):
-                    f_list = drive_services.get_all_remote_folder(service)
+                    f_list = folder_info
                 else:
-                    f_list = get_list_file_for_sync(service, None)
+                    f_list = file_info
                 for i in f_list:
                     if i['id'] == f_id:
-                        print(" %s already present in Google Drive" % common_utils.get_file_name(path))
+                        print("%s already present in Google Drive" % common_utils.get_file_name(path))
                         return False
-        if os.path.isdir(path):
-            if is_local_sync:
-                print("1")
-            else:
-                print("2")
-            # file_info = get_file_info_in_local(path, None, None, None)
+        # if os.path.isdir(path):
+        #     if is_local_sync:
+        #         if all_folders is None:
+        #             all_folders = drive_services.get_all_remote_folder(service)
+        #         f_list = drive_services.get_raw_data(service, 'root', True)
+        #         root_id = None
+        #         for i in f_list:
+        #             try:
+        #                 if i['parents'][0]['isRoot'] is True:
+        #                     root_id = i['parents'][0]['id']
+        #                     break
+        #             except:
+        #                 continue
+        #         if root_id is not None:
+        #             print("E")
+        #             # folder_remote_create(service, path, root_id, True, True, None, True, all_folders)
+        #     else:
+        #         print("ERROR")
+        #         # instance = service.files().get(fileId=instance_id).execute()
+        # # file_info = get_file_info_in_local(path, None, None, None)
 
     except:
         return False
 
 
-def folder_remote_create(service, path, parent_id, is_root=True):
-    if is_root is True:
-        file_metadata = {
-            'title': common_utils.get_file_name(path),
-            'mimeType': 'application/vnd.google-apps.folder',
-            'parents': [{'id': parent_id}]
-        }
-        file = service.files().insert(body=file_metadata,
-                                      fields='id').execute()
-        os.setxattr(path, 'user.id', str.encode(file.get('id')))
-        stats = os.stat(path)
-        os.utime(path, (stats.st_atime, common_utils.utc2local(
-            datetime.strptime(file.get('modifiedDate'), '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
-        is_root = False
-        parent_id = file.get('id')
-    obj = os.scandir(path)
-    for entry in obj:
-        if entry.is_dir():
-            file_metadata = {
-                'title': common_utils.get_file_name(path),
-                'mimeType': 'application/vnd.google-apps.folder',
-                'parents': [{'id': parent_id}]
-            }
-            file = service.files().insert(body=file_metadata,
-                                          fields='id').execute()
-            os.setxattr(path, 'user.id', str.encode(file.get('id')))
-            stats = os.stat(path)
-            os.utime(path, (stats.st_atime, common_utils.utc2local(
-                datetime.strptime(file.get('modifiedDate'), '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
-            folder_remote_create(service, entry.path, file.get('id'), is_root)
-
-
-def get_file_info_for_sync(f_list, absolute_path, parents, parent_folder_id, file_info_list):
+def get_file_info_for_sync(f_list, absolute_path, parents, parent_folder_id, file_info_list, folder_info_list):
     try:
         if absolute_path is None:
             absolute_path = config_utils.get_folder_sync_path()
@@ -260,22 +244,34 @@ def get_file_info_for_sync(f_list, absolute_path, parents, parent_folder_id, fil
             parents = []
         if file_info_list is None:
             file_info_list = []
+        if folder_info_list is None:
+            folder_info_list = []
         for i in f_list:
             try:
                 if i['mimeType'] == 'application/vnd.google-apps.folder' and i['parents'][0]['id'] == parent_folder_id:
+                    obj = {
+                        "id": i['id'],
+                        "name": i['title'],
+                        "parent_folder_id": parent_folder_id,
+                        "parents": [],
+                        "absolute_path": absolute_path,
+                        "modifiedDate": datetime.strptime(i['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ').timestamp()
+                    }
+                    obj["parents"].extend(parents)
+                    folder_info_list.append(obj)
                     temp_path = os.path.join(absolute_path, i['title'])
                     parents.append({
                         "folder_name": i['title'],
                         "folder_id": i['id']
                     })
                     parents_len = len(parents) - 1
-                    get_file_info_for_sync(f_list, temp_path, parents, i['id'], file_info_list)
+                    get_file_info_for_sync(f_list, temp_path, parents, i['id'], file_info_list, folder_info_list)
                     for j in range(parents_len, len(parents)):
                         parents.pop(j)
                 elif i['parents'][0]['id'] == parent_folder_id:
                     obj = {
                         "id": i['id'],
-                        "file_name": i['title'],
+                        "name": i['title'],
                         "parent_folder_id": parent_folder_id,
                         "parents": [],
                         "absolute_path": absolute_path,
@@ -286,9 +282,9 @@ def get_file_info_for_sync(f_list, absolute_path, parents, parent_folder_id, fil
                     file_info_list.append(obj)
             except:
                 continue
-        return file_info_list
+        return file_info_list, folder_info_list
     except:
-        return None
+        return None, None
 
 
 def get_folder_tree_for_sync(path, sub_path, parents):
@@ -299,7 +295,7 @@ def get_folder_tree_for_sync(path, sub_path, parents):
     if path == sub_path:
         return
     for entry in os.scandir(path):
-        if entry.is_dir() and path in sub_path:
+        if entry.is_dir() and entry.path in sub_path:
             try:
                 f_id = os.getxattr(entry.path, 'user.id')
                 f_id = f_id.decode()
@@ -314,7 +310,7 @@ def get_folder_tree_for_sync(path, sub_path, parents):
     return parents
 
 
-def get_file_info_in_local(path, is_root, parents, parent_folder_id, file_info_list):
+def get_file_info_in_local(path, is_root, parents, parent_folder_id, file_info_list, folder_info_list):
     try:
         if path is None:
             path = config_utils.get_folder_sync_path()
@@ -322,8 +318,11 @@ def get_file_info_in_local(path, is_root, parents, parent_folder_id, file_info_l
             parents = []
         if file_info_list is None:
             file_info_list = []
+        if folder_info_list is None:
+            folder_info_list = []
         if config_utils.get_folder_sync_path() in path and is_root is False:
-            parents = get_folder_tree_for_sync(config_utils.get_folder_sync_path(), path, None)
+            if os.path.normpath(config_utils.get_folder_sync_path()) != os.path.normpath(path):
+                parents = get_folder_tree_for_sync(config_utils.get_folder_sync_path(), path, None)
             is_root = True
         obj = os.scandir(path)
         for entry in obj:
@@ -333,18 +332,28 @@ def get_file_info_in_local(path, is_root, parents, parent_folder_id, file_info_l
             except:
                 f_id = None
             if entry.is_dir():
+                obj = {
+                    "id": f_id,
+                    "name": entry.name,
+                    "parent_folder_id": parent_folder_id,
+                    "parents": [],
+                    "absolute_path": os.path.dirname(entry.path),
+                    "modifiedDate": datetime.utcfromtimestamp(entry.stat().st_mtime).timestamp()
+                }
+                obj["parents"].extend(parents)
+                folder_info_list.append(obj)
                 parents.append({
                     "folder_name": entry.name,
                     "folder_id": f_id
                 })
                 parents_len = len(parents) - 1
-                get_file_info_in_local(entry.path, is_root, parents, f_id, file_info_list)
+                get_file_info_in_local(entry.path, is_root, parents, f_id, file_info_list, folder_info_list)
                 for j in range(parents_len, len(parents)):
                     parents.pop(j)
             elif entry.is_file():
                 obj = {
                     "id": f_id,
-                    "file_name": entry.name,
+                    "name": entry.name,
                     "parent_folder_id": parent_folder_id,
                     "parents": [],
                     "absolute_path": os.path.dirname(entry.path),
@@ -353,28 +362,35 @@ def get_file_info_in_local(path, is_root, parents, parent_folder_id, file_info_l
                 }
                 obj["parents"].extend(parents)
                 file_info_list.append(obj)
-        return file_info_list
+        return file_info_list, folder_info_list
     except:
-        return None
+        return None, None
 
 
-def get_list_file_for_sync(service, local_path):
-    f_list = drive_services.get_raw_data(service, 'root', True)
-    f_info = None
-    for i in f_list:
-        if i['mimeType'] == 'application/vnd.google-apps.folder':
+def get_list_file_for_sync(service, local_path, option):
+    if option == 'remote' or option == 'all':
+        f_list = drive_services.get_raw_data(service, 'root', True)
+        file_info = None
+        folder_info = None
+        for i in f_list:
             try:
                 if i['parents'][0]['isRoot'] is True:
-                    f_info = get_file_info_for_sync(f_list, None, None, i['parents'][0]['id'], None)
+                    file_info, folder_info = get_file_info_for_sync(f_list, None, None, i['parents'][0]['id'], None,
+                                                                    None)
                     break
             except:
                 continue
-    f_info_local = get_file_info_in_local(local_path, False, None, None, None)
-    return f_info, f_info_local
+        if option == 'remote':
+            return file_info, folder_info
+    file_info_local, folder_info_local = get_file_info_in_local(local_path, False, None, None, None, None)
+    if option == 'local':
+        return file_info_local, folder_info_local
+    else:
+        return file_info_local, folder_info_local, file_info, folder_info
 
 
 def f_sync(service, local_path):
-    f_info, f_info_local = get_list_file_for_sync(service, local_path)
+    f_info, f_info_local = get_list_file_for_sync(service, local_path, 'remote')
     print(f_info_local)
     # for i in f_info_local:
     #     if i['']

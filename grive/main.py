@@ -1,4 +1,3 @@
-
 import sys
 from os import path
 import os
@@ -125,13 +124,12 @@ def main():
         elif arguments[arg_index] == '-xs':
             restore_default.restore_default()
 
-        elif arguments[arg_index] == "-u" or arguments[arg_index] == "-uf" or arguments[arg_index] == "-uo":
-            if arguments[arg_index] == "-uf":
-                arg_index += 1
-
+        elif arguments[arg_index] == "-u" or arguments[arg_index] == "-uo" \
+                or arguments[arg_index] == "-uf" or arguments[arg_index] == "-ufo":
+            arg_index += 1
             if is_matching(arg_index, len(arguments)):
-                print(arguments[len(arguments) - 1])
-                drive_utils.uploader(service, "uof", arguments[len(arguments) - 1], None, None)
+                id_list = []
+                drive_utils.uploader(service, arguments[0], arguments[len(arguments) - 1], None, None)
                 arg_index = len(arguments)
                 # else:
                 #     drive_utils.f_up(drive, folder_id, arguments[arg_index:len(arguments)], mode)
