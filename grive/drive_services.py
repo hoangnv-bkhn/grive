@@ -3,6 +3,7 @@ import os.path
 import sys
 import threading
 from datetime import datetime
+from console_progressbar import ProgressBar
 
 from googleapiclient.http import MediaIoBaseDownload
 from googleapiclient.discovery import build
@@ -93,6 +94,44 @@ def get_raw_data(service, instance, recursive):
 
 
 # def download(service, file_id, file_name, save_location, mimetype=None):
+# def download(instance):
+#     try:
+#         # print("Thread : {}".format(threading.current_thread().name))
+#         creds = auth_utils.get_user_credential()
+#         service = build('drive', 'v2', credentials=creds)
+
+#         if instance.get('mimeType') is not None:
+#             request = service.files().export_media(fileId=instance.get('id'),
+#                                                    mimeType=instance.get('mimeType'))
+#         else:
+#             request = service.files().get_media(fileId=instance.get('id'))
+
+#         fd = io.BytesIO()
+#         download_rate = config_utils.get_network_limitation('download')
+#         if not download_rate:
+#             downloader = MediaIoBaseDownload(fd=fd, request=request)
+#         else:
+#             downloader = MediaIoBaseDownload(fd=fd, request=request, chunksize=download_rate)
+
+#         done = False
+#         while done is False:
+#             status, done = downloader.next_chunk()
+#             print("Download %s %d%%." % (instance.get('title'), int(status.progress() * 100)))
+#         fd.seek(0)
+
+#         with open(instance.get('saveLocation'), 'wb') as f:
+#             f.write(fd.read())
+#             f.close()
+#     except:
+#         return False
+
+#     os.setxattr(instance.get('saveLocation'), 'user.id', str.encode(instance.get('id')))
+#     stats = os.stat(instance.get('saveLocation'))
+#     os.utime(instance.get('saveLocation'), (stats.st_atime, common_utils.utc2local(
+#         datetime.strptime(instance.get('modifiedDate'), '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
+
+#     return True
+
 def download(instance):
     try:
         # print("Thread : {}".format(threading.current_thread().name))
@@ -113,9 +152,11 @@ def download(instance):
             downloader = MediaIoBaseDownload(fd=fd, request=request, chunksize=download_rate)
 
         done = False
+        pb = ProgressBar(total=100, prefix='Download ' + instance.get('title'), decimals=3, length=50, fill='X', zfill='-')
         while done is False:
             status, done = downloader.next_chunk()
-            print("Download %s %d%%." % (instance.get('title'), int(status.progress() * 100)))
+            # print("Download %s %d%%." % (instance.get('title'), int(status.progress() * 100)))
+            pb.print_progress_bar(int(status.progress() * 100))
         fd.seek(0)
 
         with open(instance.get('saveLocation'), 'wb') as f:

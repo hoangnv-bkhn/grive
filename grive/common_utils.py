@@ -213,28 +213,28 @@ def renderTypeShow(type):
 
 
 def isAudioFile(file):
-    if re.compile('audio', re.IGNORECASE).search(file['type']):
+    if re.compile('audio', re.IGNORECASE).search(file['mimeType']):
         return True
     else:
         return False
 
 
 def isImageFile(file):
-    if re.compile('image', re.IGNORECASE).search(file['type']):
+    if re.compile('image', re.IGNORECASE).search(file['mimeType']):
         return True
     else:
         return False
 
 
 def isVideoFile(file):
-    if re.compile('video', re.IGNORECASE).search(file['type']):
+    if re.compile('video', re.IGNORECASE).search(file['mimeType']):
         return True
     else:
         return False
 
 
 def isDocument(file):
-    if re.compile('document', re.IGNORECASE).search(file['type']):
+    if re.compile('document', re.IGNORECASE).search(file['mimeType']):
         return True
     else:
         return False
