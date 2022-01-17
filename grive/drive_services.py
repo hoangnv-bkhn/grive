@@ -133,31 +133,38 @@ def download(instance):
     return True
 
 
-def upload(service, path, parent_id, mime_type):
+def upload(instance):
     try:
-        filename = common_utils.get_file_name(path)
-        if mime_type is None:
-            media_body = MediaFileUpload(path, chunksize=1024 * 1024, resumable=True)
-        else:
-            media_body = MediaFileUpload(path, mimetype=mime_type, resumable=True)
+        creds = auth_utils.get_user_credential()
+        service = build('drive', 'v2', credentials=creds)
+        filename = instance.get('title')
+        path = instance.get('path')
+        parent_id = instance.get('parent_id')
+        set_id = instance.get('set_id')
+        media_body = MediaFileUpload(path, chunksize=1024 * 1024, resumable=True)
         body = {
             'title': filename
         }
         # Set the parent folder.
-        if parent_id:
+        if parent_id is not None:
             body['parents'] = [{'id': parent_id}]
         # upload_rate = config_utils.get_network_limitation('upload')
         # if upload_rate:
         #     media_body.__init__(chunksize=upload_rate)
-        file = service.files().insert(
-            body=body,
-            media_body=media_body)
+        file = service.files().insert(body=body, media_body=media_body, fields='id')
         response = None
         while response is None:
             status, response = file.next_chunk()
             if status:
-                sys.stdout.write("\rUpload %d%% complete." % int(status.progress() * 100))
-                sys.stdout.flush()
+                # sys.stdout.write("\rUpload %s file %d%% complete." % (filename, int(status.progress() * 100)))
+                # sys.stdout.flush()
+                print("Upload %s file %d%% complete." % (filename, int(status.progress() * 100)))
+        file = service.files().get(fileId=response.get('id')).execute()
+        if set_id is True:
+            os.setxattr(path, 'user.id', str.encode(response.get('id')))
+            stats = os.stat(path)
+            os.utime(path, (stats.st_atime, common_utils.utc2local(
+                datetime.strptime(file.get('modifiedDate'), '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
         return True
     except:
         return False

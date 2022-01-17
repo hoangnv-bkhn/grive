@@ -129,11 +129,22 @@ def main():
             arg_index += 1
             if is_matching(arg_index, len(arguments)):
                 id_list = []
-                drive_utils.uploader(service, arguments[0], arguments[len(arguments) - 1], None, None)
+                if arguments[0] == "-uf" or arguments[0] == "-ufo":
+                    for argument in arguments[arg_index: len(arguments) - 1]:
+                        if drive_utils.uploader(service, arguments[0], argument, arguments[len(arguments)],
+                                                id_list) is False:
+                            print("'%s' is an invalid id !" % argument)
+                    with ThreadPoolExecutor(5) as executor:
+                        executor.map(drive_services.upload, id_list)
+
+                elif arguments[0] == "-u" or arguments[0] == "-uo":
+                    for argument in arguments[arg_index: len(arguments)]:
+                        if drive_utils.uploader(service, arguments[0], argument, None, id_list) is False:
+                            print("'%s' is an invalid id !" % argument)
+                    with ThreadPoolExecutor(5) as executor:
+                        executor.map(drive_services.upload, id_list)
+
                 arg_index = len(arguments)
-                # else:
-                #     drive_utils.f_up(drive, folder_id, arguments[arg_index:len(arguments)], mode)
-                #     arg_index = len(arguments)
 
         elif arguments[arg_index] == "-q" or arguments[arg_index] == '-qc':
             arg_index += 1

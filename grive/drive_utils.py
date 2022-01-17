@@ -185,54 +185,156 @@ def downloader(service, option, instance_id, save_folder, id_list=None):
 
 def uploader(service, option, path, parent_id, id_list=None):
     try:
+        path = os.path.normpath(path)
         overwrite = False
         is_local_sync = False
         if os.path.exists(path) is False:
             return False
         if id_list is None:
             id_list = []
-        if common_utils.check_option(option, 'o', 3) or common_utils.check_option(option, 'o', 4):
+        if common_utils.check_option(option, 'o', 2) or common_utils.check_option(option, 'o', 3):
             overwrite = True
         if os.path.normpath(config_utils.get_folder_sync_path()) in os.path.normpath(path):
             is_local_sync = True
-        if overwrite is False:
+        if is_local_sync is True and parent_id is None:
+            file_info_local, folder_info_local, file_info, folder_info = get_list_file_for_sync(service,
+                                                                                                config_utils.get_folder_sync_path(),
+                                                                                                'all')
             try:
                 f_id = os.getxattr(path, 'user.id')
                 f_id = f_id.decode()
             except:
                 f_id = None
             if f_id is not None:
-                file_info, folder_info = get_list_file_for_sync(service, path, 'remote')
                 if os.path.isdir(path):
                     f_list = folder_info
                 else:
                     f_list = file_info
-                for i in f_list:
-                    if i['id'] == f_id:
-                        print("%s already present in Google Drive" % common_utils.get_file_name(path))
-                        return False
-        # if os.path.isdir(path):
-        #     if is_local_sync:
-        #         if all_folders is None:
-        #             all_folders = drive_services.get_all_remote_folder(service)
-        #         f_list = drive_services.get_raw_data(service, 'root', True)
-        #         root_id = None
-        #         for i in f_list:
-        #             try:
-        #                 if i['parents'][0]['isRoot'] is True:
-        #                     root_id = i['parents'][0]['id']
-        #                     break
-        #             except:
-        #                 continue
-        #         if root_id is not None:
-        #             print("E")
-        #             # folder_remote_create(service, path, root_id, True, True, None, True, all_folders)
-        #     else:
-        #         print("ERROR")
-        #         # instance = service.files().get(fileId=instance_id).execute()
-        # # file_info = get_file_info_in_local(path, None, None, None)
-
+                if f_list is not None:
+                    for i in f_list:
+                        if i['id'] == f_id:
+                            if overwrite is False:
+                                print("%s already present in Google Drive" % common_utils.get_file_name(path))
+                                return True
+                            else:
+                                try:
+                                    service.files().trash(fileId=f_id).execute()
+                                    break
+                                except:
+                                    break
+        f_new_id = None
+        if parent_id is not None:
+            f_new_id = parent_id
+        if is_local_sync is True and parent_id is None:
+            f_info_local = None
+            if os.path.isdir(path):
+                for i in folder_info_local:
+                    if i['absolute_path'] == os.path.dirname(path) and i['name'] == common_utils.get_file_name(path):
+                        f_info_local = i
+                        break
+            else:
+                for i in file_info_local:
+                    if i['absolute_path'] == os.path.dirname(path) and i['name'] == common_utils.get_file_name(path):
+                        f_info_local = i
+                        break
+            check_location = None
+            for i in f_info_local['parents']:
+                if check_location is not False:
+                    check_path = drive_services.get_local_path(service, i['folder_id'],
+                                                               config_utils.get_folder_sync_path())
+                    if check_path is not None:
+                        if os.path.normpath(check_path) != os.path.normpath(i['folder_absolute_path']):
+                            check_location = False
+                        else:
+                            f_new_id = i['folder_id']
+                    else:
+                        check_location = False
+                if check_location is False:
+                    if f_new_id is None:
+                        file_metadata = {
+                            'title': i['folder_name'],
+                            'mimeType': 'application/vnd.google-apps.folder'
+                        }
+                    else:
+                        file_metadata = {
+                            'title': i['folder_name'],
+                            'mimeType': 'application/vnd.google-apps.folder',
+                            'parents': [{'id': f_new_id}]
+                        }
+                    file = service.files().insert(body=file_metadata,
+                                                  fields='id').execute()
+                    f_new_id = file.get('id')
+                    os.setxattr(os.path.join(i['folder_absolute_path'], i['folder_name']), 'user.id',
+                                str.encode(f_new_id))
+        if os.path.isdir(path):
+            if parent_id is None and is_local_sync is True:
+                folder_create_for_upload(service, path, f_new_id, True, True, id_list)
+            else:
+                folder_create_for_upload(service, path, f_new_id, False, True, id_list)
+        else:
+            if parent_id is None and is_local_sync is True:
+                set_id = True
+            else:
+                set_id = False
+            elem = {
+                'title': common_utils.get_file_name(path),
+                'parent_id': f_new_id,
+                'path': path,
+                'set_id': set_id
+            }
+            id_list.append(elem)
     except:
+        return False
+
+
+def folder_create_for_upload(service, path, parent_id, set_id, is_parent=True, id_list=None):
+    if os.path.isdir(path):
+        if is_parent is True:
+            if parent_id is None:
+                file_metadata = {
+                    'title': common_utils.get_file_name(path),
+                    'mimeType': 'application/vnd.google-apps.folder'
+                }
+            else:
+                file_metadata = {
+                    'title': common_utils.get_file_name(path),
+                    'mimeType': 'application/vnd.google-apps.folder',
+                    'parents': [{'id': parent_id}]
+                }
+            file = service.files().insert(body=file_metadata,
+                                          fields='id').execute()
+            parent_id = file.get('id')
+            if set_id is True:
+                os.setxattr(path, 'user.id', str.encode(file.get('id')))
+            is_parent = False
+        if is_parent is False:
+            for entry in os.scandir(path):
+                if entry.is_dir():
+                    if parent_id is None:
+                        file_metadata = {
+                            'title': common_utils.get_file_name(entry.path),
+                            'mimeType': 'application/vnd.google-apps.folder'
+                        }
+                    else:
+                        file_metadata = {
+                            'title': common_utils.get_file_name(entry.path),
+                            'mimeType': 'application/vnd.google-apps.folder',
+                            'parents': [{'id': parent_id}]
+                        }
+                    file = service.files().insert(body=file_metadata,
+                                                  fields='id').execute()
+                    if set_id is True:
+                        os.setxattr(entry.path, 'user.id', str.encode(file.get('id')))
+                    folder_create_for_upload(service, entry.path, file.get('id'), set_id, is_parent, id_list)
+                else:
+                    elem = {
+                        'title': common_utils.get_file_name(entry.path),
+                        'parent_id': parent_id,
+                        'path': entry.path,
+                        'set_id': set_id
+                    }
+                    id_list.append(elem)
+    else:
         return False
 
 
@@ -262,7 +364,8 @@ def get_file_info_for_sync(f_list, absolute_path, parents, parent_folder_id, fil
                     temp_path = os.path.join(absolute_path, i['title'])
                     parents.append({
                         "folder_name": i['title'],
-                        "folder_id": i['id']
+                        "folder_id": i['id'],
+                        "folder_absolute_path": absolute_path
                     })
                     parents_len = len(parents) - 1
                     get_file_info_for_sync(f_list, temp_path, parents, i['id'], file_info_list, folder_info_list)
@@ -344,7 +447,8 @@ def get_file_info_in_local(path, is_root, parents, parent_folder_id, file_info_l
                 folder_info_list.append(obj)
                 parents.append({
                     "folder_name": entry.name,
-                    "folder_id": f_id
+                    "folder_id": f_id,
+                    "folder_absolute_path": os.path.dirname(entry.path)
                 })
                 parents_len = len(parents) - 1
                 get_file_info_in_local(entry.path, is_root, parents, f_id, file_info_list, folder_info_list)
@@ -391,7 +495,9 @@ def get_list_file_for_sync(service, local_path, option):
 
 def f_sync(service, local_path):
     f_info, f_info_local = get_list_file_for_sync(service, local_path, 'remote')
-    print(f_info_local)
+    for i in f_info_local:
+        if i['id'] == '174wINupgarkcx_anGYWOAJR8x0FBt7nS':
+            print(i)
     # for i in f_info_local:
     #     if i['']
     # path = os.path.join(os.path.expanduser(Path().resolve()), addr)
