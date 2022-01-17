@@ -1,7 +1,8 @@
 import io
 import os.path
 import sys
-import threading
+import time
+import timeit
 from datetime import datetime
 
 from googleapiclient.http import MediaIoBaseDownload
@@ -109,15 +110,23 @@ def download(instance):
         download_rate = config_utils.get_network_limitation('download')
         if not download_rate:
             downloader = MediaIoBaseDownload(fd=fd, request=request)
+            done = False
+            while done is False:
+                status, done = downloader.next_chunk()
+                print("Download %s %d%%." % (instance.get('title'), int(status.progress() * 100)))
         else:
-            downloader = MediaIoBaseDownload(fd=fd, request=request, chunksize=download_rate)
+            downloader = MediaIoBaseDownload(fd=fd, request=request, chunksize=download_rate * 1024)
+            done = False
+            while done is False:
+                start = timeit.default_timer()
+                status, done = downloader.next_chunk()
+                print("Download %s %d%%." % (instance.get('title'), int(status.progress() * 100)))
+                stop = timeit.default_timer()
+                processing_time = stop - start
+                if processing_time < 0.95:
+                    time.sleep(0.95 - processing_time)
 
-        done = False
-        while done is False:
-            status, done = downloader.next_chunk()
-            print("Download %s %d%%." % (instance.get('title'), int(status.progress() * 100)))
         fd.seek(0)
-
         with open(instance.get('saveLocation'), 'wb') as f:
             f.write(fd.read())
             f.close()

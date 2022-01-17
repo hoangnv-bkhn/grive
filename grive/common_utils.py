@@ -269,6 +269,7 @@ def get_dup_name(folder, name):
     else:
         return os.path.join(folder, name)
 
+
 def get_list_local_id(folder):
     ids = []
     if os.path.exists(folder):
@@ -279,6 +280,7 @@ def get_list_local_id(folder):
             except:
                 continue
     return ids
+
 
 def utc2local(utc):
     epoch = time.mktime(utc.timetuple())

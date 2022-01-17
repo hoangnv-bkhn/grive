@@ -682,7 +682,7 @@ def f_remove(drive, mode, addrs):
         return False
 
 
-def get_info(drive, option, instance):
+def get_info(service, option, instance):
     result_local = None
     result_remote = None
 
@@ -718,54 +718,157 @@ def get_info(drive, option, instance):
     else:
         print(str(option) + " is an unrecognised argument. Please report if you know this is an error .\n\n")
 
-    # print(instance_id)
-    if instance_id is not None and is_valid_id(drive, instance_id):
-        remote_file = drive.CreateFile({'id': instance_id})
-        # print(remote_file['title'])
-        remote_file.FetchMetadata(fetch_all=True)
-        permissions = remote_file.get('permissions')
-        # print(remote_file)
-        # print(permissions)
-        result_remote = {
-            'storageLocation': 'remote',
-            'id': remote_file.get('id'),
-            'title': remote_file.get('title'),
-            'alternateLink': remote_file.get('alternateLink'),
-            'parents': remote_file.get('parents'),
-            'userPermission': [],
-            'shared': remote_file.get('shared'),
-            'ownedByMe': remote_file.get('ownedByMe'),
-            'md5Checksum': remote_file.get('md5Checksum'),
-            'fileSize': remote_file.get('fileSize') if remote_file.get('fileSize') else '',
-            'isFolder': True if remote_file.get('mimeType') == 'application/vnd.google-apps.folder' else False
-        }
-        for elem in permissions:
-            result_remote.get('userPermission').append({
-                "name": elem.get('name'),
-                "emailAddress": elem.get('emailAddress'),
-                "role": elem.get('role'),
-            })
+    if instance_id is not None:
+        try:
+            fields = 'id, title, alternateLink, parents, userPermission, permissions, ' \
+                     'shared, ownedByMe, md5Checksum, fileSize, mimeType, createdDate, modifiedDate'
+            remote_file = service.files().get(fileId=instance_id,
+                                              fields=fields).execute()
 
-        flag = False
-        for file in local_files:
-            if instance_id == file['id']:
-                flag = True
-                result_local = file
-        if not flag:
-            for folder in sub_folders:
-                if instance_id == folder['id']:
-                    result_local = folder
+            permissions = remote_file.get('permissions')
+            instance_parent = remote_file.get('parents')[0]['id']
+            # print(instance_parent)
+            rel_path = []
+            all_folders = drive_services.get_all_remote_folder(service)
+            drive_services.get_cloud_path(all_folders, instance_parent, rel_path)
+            remote_path = os.sep
+            for elem in rel_path:
+                # print(elem)
+                remote_path += elem.get('name') + os.sep
+            result_remote = {
+                'storageLocation': 'remote',
+                'id': remote_file.get('id'),
+                'title': remote_file.get('title'),
+                'alternateLink': remote_file.get('alternateLink'),
+                'parents': remote_file.get('parents'),
+                'userPermission': [],
+                'shared': remote_file.get('shared'),
+                'ownedByMe': remote_file.get('ownedByMe'),
+                'md5Checksum': remote_file.get('md5Checksum'),
+                'fileSize': remote_file.get('fileSize'),
+                'mimeType': remote_file.get('mimeType'),
+                'createdDate': common_utils.utc2local(
+                    datetime.strptime(remote_file['createdDate'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)),
+                'modifiedDate': common_utils.utc2local(
+                    datetime.strptime(remote_file['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ').replace(microsecond=0)),
+                'remotePath': remote_path
+            }
+            for elem in permissions:
+                result_remote.get('userPermission').append({
+                    "name": elem.get('name'),
+                    "emailAddress": elem.get('emailAddress'),
+                    "role": elem.get('role'),
+                })
+
+            flag = False
+            for file in local_files:
+                if instance_id == file['id']:
+                    flag = True
+                    result_local = file
+            if not flag:
+                for folder in sub_folders:
+                    if instance_id == folder['id']:
+                        result_local = folder
+        except:
+            print('%s is an invalid parameter !' % instance)
+
     else:
         if not path_err and not default_opt:
             print('%s is invalid !' % instance)
 
-    print(result_local)
-    print("=====")
-    print(result_remote)
+    # print(result_local)
+    # print("=====")
+    # print(result_remote)
     # print("=====")
     # print(Path().resolve())
 
     return result_local, result_remote
+
+
+# def get_info(drive, option, instance):
+#     result_local = None
+#     result_remote = None
+#
+#     local_files, sub_folders = f_list_local(config_utils.get_folder_sync_path(), True)
+#
+#     path_err = False
+#     default_opt = False
+#
+#     instance_id = None
+#     if common_utils.check_option(option, 'i', 2):
+#         default_opt = True
+#         path = os.path.join(os.path.expanduser(Path().resolve()), instance)
+#         if os.path.exists(path) and path.startswith(config_utils.get_folder_sync_path() + os.sep):
+#             flag = False
+#             for file in local_files:
+#                 if path == file['canonicalPath']:
+#                     flag = True
+#                     instance_id = file['id']
+#                     if instance_id is None:
+#                         result_local = file
+#             if not flag:
+#                 for folder in sub_folders:
+#                     if path == folder['canonicalPath']:
+#                         instance_id = folder['id']
+#                         if instance_id is None:
+#                             result_local = folder
+#         else:
+#             path_err = True
+#             print('%s is invalid path !' % path)
+#
+#     elif common_utils.check_option(option, 'f', 3):
+#         instance_id = instance
+#     else:
+#         print(str(option) + " is an unrecognised argument. Please report if you know this is an error .\n\n")
+#
+#     # print(instance_id)
+#     if instance_id is not None and is_valid_id(drive, instance_id):
+#         remote_file = drive.CreateFile({'id': instance_id})
+#         # print(remote_file['title'])
+#         remote_file.FetchMetadata(fetch_all=True)
+#         permissions = remote_file.get('permissions')
+#         # print(remote_file)
+#         # print(permissions)
+#         result_remote = {
+#             'storageLocation': 'remote',
+#             'id': remote_file.get('id'),
+#             'title': remote_file.get('title'),
+#             'alternateLink': remote_file.get('alternateLink'),
+#             'parents': remote_file.get('parents'),
+#             'userPermission': [],
+#             'shared': remote_file.get('shared'),
+#             'ownedByMe': remote_file.get('ownedByMe'),
+#             'md5Checksum': remote_file.get('md5Checksum'),
+#             'fileSize': remote_file.get('fileSize') if remote_file.get('fileSize') else '',
+#             'isFolder': True if remote_file.get('mimeType') == 'application/vnd.google-apps.folder' else False
+#         }
+#         for elem in permissions:
+#             result_remote.get('userPermission').append({
+#                 "name": elem.get('name'),
+#                 "emailAddress": elem.get('emailAddress'),
+#                 "role": elem.get('role'),
+#             })
+#
+#         flag = False
+#         for file in local_files:
+#             if instance_id == file['id']:
+#                 flag = True
+#                 result_local = file
+#         if not flag:
+#             for folder in sub_folders:
+#                 if instance_id == folder['id']:
+#                     result_local = folder
+#     else:
+#         if not path_err and not default_opt:
+#             print('%s is invalid !' % instance)
+#
+#     print(result_local)
+#     print("=====")
+#     print(result_remote)
+#     # print("=====")
+#     # print(Path().resolve())
+#
+#     return result_local, result_remote
 
 
 def file_restore(drive, addr_list):

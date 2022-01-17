@@ -10,6 +10,8 @@ import re
 import logging
 from datetime import datetime
 from pathlib import Path
+
+import prettytable
 from googleapiclient.discovery import build
 from pydrive.drive import GoogleDrive
 from prettytable import PrettyTable
@@ -225,7 +227,44 @@ def main():
         elif arguments[arg_index] == "-i" or arguments[arg_index] == "-if":
             arg_index += 1
             if is_matching(arg_index, len(arguments)):
-                info_local, info_remote = drive_utils.get_info(drive, arguments[0], arguments[arg_index])
+                info_local, info_remote = drive_utils.get_info(service, arguments[0], arguments[arg_index])
+                if info_remote is not None and len(info_remote) > 0:
+                    print()
+                    print('General\n'.rjust(60))
+
+                    shared = False
+                    owned_by_me = False
+                    if info_remote.get('shared'):
+                        shared = True
+                    if info_remote.get('ownedByMe'):
+                        owned_by_me = True
+
+                    x = PrettyTable()
+                    # x.field_names = ["", "General"]
+                    # x.title = "General"
+                    # x.add_row(["Status", info_remote.get('title'), '', ''])
+                    x.add_row(["Title", info_remote.get('title'), '\n'])
+                    x.add_row(["ID", info_remote.get('id'), '\n'])
+                    x.add_row(["Type", info_remote.get('mimeType'), '\n'])
+                    x.add_row(["Modified Date", info_remote.get('modifiedDate'), '\n'])
+                    x.add_row(["Created Date", info_remote.get('createdDate'), '\n'])
+                    x.add_row(["Remote Path", info_remote.get('remotePath'), '\n'])
+                    if owned_by_me:
+                        x.add_row(["Owner", 'Me', '\n'])
+                    for i, elem in enumerate(info_remote.get('userPermission')):
+                        if i == 0:
+                            x.add_row(["Permission", elem.get('name').ljust(30) + elem.get('role').ljust(15) + elem.get('emailAddress'), '\n'])
+                        else:
+                            x.add_row(["", elem.get('name').ljust(30) + elem.get('role').ljust(15) + elem.get('emailAddress'), '\n'])
+                    if shared:
+                        x.add_row(["Share Link", info_remote.get('alternateLink'), '\n'])
+                    x.align = "l"
+                    # x.set_style(prettytable.PLAIN_COLUMNS)
+                    x.header = False
+                    x.border = False
+                    x.left_padding_width = 5
+
+                    print(x)
 
         # elif arguments[arg_index] == "-l" or arguments[arg_index] == "-lr": # l lr lp: path lpr lf:id lfr
         elif arguments[arg_index] == "-l" or arguments[arg_index] == "-lr" or arguments[arg_index] == "-lp" or \
