@@ -4,7 +4,6 @@ import os
 from concurrent.futures.thread import ThreadPoolExecutor
 
 from builtins import str
-import re
 
 import logging
 from datetime import datetime
@@ -46,7 +45,7 @@ def main():
         import drive_services
         import jobs
         import restore_default
-        
+
     # using relativistic imports directly if launched as package
     except ImportError:
         from . import common_utils
@@ -156,7 +155,7 @@ def main():
                 drive_utils.f_exclusive(arguments[arg_index], mode)
                 arg_index = len(arguments)
 
-        elif arguments[arg_index] == "-z":
+        elif arguments[arg_index] == "-sy":
             arg_index += 1
             if is_matching(arg_index, len(arguments)):
                 drive_utils.f_sync(service, arguments[arg_index])
@@ -241,47 +240,50 @@ def main():
                 #                         datetime.fromtimestamp(info_local['modifiedDate']).strftime("%m/%d/%Y %H:%M"),
                 #                         common_utils.sizeof_fmt(common_utils.getFileSize(info_local))]),
 
-                print("%-40s | %30s | %10s | %20s | %10s" % ((info_local['title'][:37]+ "...")if len(info_local["title"])> 37 else info_local['title'],
-                                        info_local['id'] if info_local['id'] else '',
-                                        info_local['storageLocation'],
-                                        datetime.fromtimestamp(info_local['modifiedDate']).strftime("%m/%d/%Y %H:%M"),
-                                        common_utils.sizeof_fmt(common_utils.getFileSize(info_local))))  
+                print("%-40s | %30s | %10s | %20s | %10s" % (
+                (info_local['title'][:37] + "...") if len(info_local["title"]) > 37 else info_local['title'],
+                info_local['id'] if info_local['id'] else '',
+                info_local['storageLocation'],
+                datetime.fromtimestamp(info_local['modifiedDate']).strftime("%m/%d/%Y %H:%M"),
+                common_utils.sizeof_fmt(common_utils.getFileSize(info_local))))
 
                 # table.add_row([(info_remote['title'][:37]+ "...")if len(info_remote["title"])> 37 else info_remote['title'],
                 #                         info_remote['id'] if info_remote['id'] else '',
                 #                         info_remote['storageLocation'],
                 #                         datetime.fromtimestamp(info_remote['modifiedDate']).strftime("%m/%d/%Y %H:%M"),
                 #                         common_utils.sizeof_fmt(common_utils.getFileSize(info_remote))]),
-                print("%-40s | %30s | %10s | %20s | %10s" % ((info_remote['title'][:37]+ "...")if len(info_remote["title"])> 37 else info_remote['title'],
-                                        info_remote['id'] if info_remote['id'] else '',
-                                        info_remote['storageLocation'],
-                                        datetime.fromtimestamp(info_remote['modifiedDate']).strftime("%m/%d/%Y %H:%M"),
-                                        common_utils.sizeof_fmt(common_utils.getFileSize(info_remote))))
+                print("%-40s | %30s | %10s | %20s | %10s" % (
+                (info_remote['title'][:37] + "...") if len(info_remote["title"]) > 37 else info_remote['title'],
+                info_remote['id'] if info_remote['id'] else '',
+                info_remote['storageLocation'],
+                datetime.fromtimestamp(info_remote['modifiedDate']).strftime("%m/%d/%Y %H:%M"),
+                common_utils.sizeof_fmt(common_utils.getFileSize(info_remote))))
                 print(info_local)
                 print("+++")
                 print(info_remote)
-              
-        elif arguments[arg_index] == "-l" or arguments[arg_index] == "-lr" or  arguments[arg_index] == "-lp" or arguments[arg_index] == "-lpr" or \
-                                    arguments[arg_index] == "-lf" or arguments[arg_index] == "-lfr":
-            
+
+        elif arguments[arg_index] == "-l" or arguments[arg_index] == "-lr" or arguments[arg_index] == "-lp" or \
+                arguments[arg_index] == "-lpr" or \
+                arguments[arg_index] == "-lf" or arguments[arg_index] == "-lfr":
+
             root = drive_utils.get_tree_folder(service)
 
             if (arg_index + 1) < len(arguments):
                 if arguments[arg_index] == "-l":
                     arg_index += 1
                     drive_utils.show_folder(service, arguments[len(arguments) - 1])
-                
+
                 elif arguments[arg_index] == "-lr":
                     arg_index += 1
                     drive_utils.show_folder_recusive(service, arguments[len(arguments) - 1], None, root)
-                 
+
                 elif arguments[arg_index] == "-lp":
                     arg_index += 1
                     drive_utils.show_folder_by_path(service, arguments[len(arguments) - 1])
-                
+
                 elif arguments[arg_index] == "-lpr":
                     arg_index += 1
-                    drive_utils.show_folder_recusive_by_path(service,  arguments[len(arguments) - 1], root)
+                    drive_utils.show_folder_recusive_by_path(service, arguments[len(arguments) - 1], root)
                     # try:
                     #     local_files_list, local_folders_list = drive_utils.f_list_local(arguments[len(arguments) - 1], True)
 
@@ -312,7 +314,6 @@ def main():
                     #     print(error)
                     #     is_print = False
 
-                
                 # elif arguments[arg_index] == "-lf":
                 #     arg_index += 1
                 #     root_files_list, root_folders_list = drive_utils.f_list_local(config_utils.get_folder_sync_path(), True)
@@ -343,7 +344,6 @@ def main():
                 #         remote_list = drive_utils.get_all_data(service, arguments[len(arguments) - 1], True)
                 #         remote_files_list = list(filter(lambda e : not e['mimeType'] == "application/vnd.google-apps.folder", remote_list))
 
-
                 #         drive_utils.compare_and_change_type_show_local(drive, local_files_list, remote_files_list)
 
                 #         for file in local_files_list:
@@ -352,21 +352,21 @@ def main():
                 #     else: 
                 #         print("Error: Invalid id folder!")
                 #         is_print = False
-   
-            else: # not have argument
-                if arguments[arg_index] == "-l" : 
+
+            else:  # not have argument
+                if arguments[arg_index] == "-l":
                     drive_utils.show_folder(service, "root")
-                    
+
                 elif arguments[arg_index] == "-lr":
                     drive_utils.show_folder_recusive(service, None, "root", root)
-                
+
                 elif arguments[arg_index] == "-lp" or arguments[arg_index] == "-lf":
                     drive_utils.show_folder_by_path(service, config_utils.get_folder_sync_path())
 
                 elif arguments[arg_index] == "-lpr" or arguments[arg_index] == "-lfr":
-                     drive_utils.show_folder_recusive_by_path(service, config_utils.get_folder_sync_path(), root)
+                    drive_utils.show_folder_recusive_by_path(service, config_utils.get_folder_sync_path(), root)
         # /home/tadanghuy/Documents/sync_grive/test
-        
+
         elif arguments[arg_index] == "-usage" or arguments[arg_index] == "usage":
             drive_audio_usage, drive_photo_usage, drive_movies_usage, drive_document_usage, drive_others_usage = drive_utils.f_calculate_usage_of_folder(
                 service)
@@ -393,7 +393,8 @@ def main():
                 table.add_row([(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], file['id'],
                                common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])).strftime(
                                    "%m/%d/%Y %H:%M"),
-                               file['mimeType'].split(".")[-1], common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                               file['mimeType'].split(".")[-1],
+                               common_utils.sizeof_fmt(common_utils.getFileSize(file))])
             table.align = 'l'
             print(table)
         elif arguments[arg_index] == "-by_cron":

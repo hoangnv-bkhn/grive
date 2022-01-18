@@ -6,7 +6,7 @@ import time
 import timeit
 from datetime import datetime
 import json
-from console_progressbar import ProgressBar
+# from console_progressbar import ProgressBar
 
 from googleapiclient.http import MediaIoBaseDownload
 from googleapiclient.http import MediaFileUpload
@@ -118,7 +118,8 @@ def download(instance):
             downloader = MediaIoBaseDownload(fd=fd, request=request, chunksize=download_rate)
 
         done = False
-        pb = ProgressBar(total=100, prefix='Download ' + instance.get('title'), decimals=3, length=50, fill='X', zfill='-')
+        pb = ProgressBar(total=100, prefix='Download ' + instance.get('title'), decimals=3, length=50, fill='X',
+                         zfill='-')
         while done is False:
             status, done = downloader.next_chunk()
             # print("Download %s %d%%." % (instance.get('title'), int(status.progress() * 100)))
@@ -145,6 +146,14 @@ def upload(instance):
         service = build('drive', 'v2', credentials=creds)
         filename = instance.get('title')
         path = instance.get('path')
+        try:
+            f_exclusive = os.getxattr(path, 'user.excludeUpload')
+            f_exclusive = f_exclusive.decode()
+        except:
+            f_exclusive = None
+        if f_exclusive is not None:
+            if f_exclusive == 'True':
+                return True
         parent_id = instance.get('parent_id')
         set_id = instance.get('set_id')
         with open(common_utils.format_dict) as f:
@@ -198,6 +207,14 @@ def update_file(service, file_id, path, option):
     Returns:
         True or False
     """
+    try:
+        f_exclusive = os.getxattr(path, 'user.excludeUpload')
+        f_exclusive = f_exclusive.decode()
+    except:
+        f_exclusive = None
+    if f_exclusive is not None:
+        if f_exclusive == 'True':
+            return True
     try:
         # First retrieve the file from the API.
         file = service.files().get(fileId=file_id).execute()
