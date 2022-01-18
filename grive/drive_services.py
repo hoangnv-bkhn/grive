@@ -6,7 +6,7 @@ import time
 import timeit
 from datetime import datetime
 import json
-# from console_progressbar import ProgressBar
+from console_progressbar import ProgressBar
 
 from googleapiclient.http import MediaIoBaseDownload
 from googleapiclient.http import MediaFileUpload
@@ -115,9 +115,12 @@ def download(instance):
         if not download_rate:
             downloader = MediaIoBaseDownload(fd=fd, request=request)
             done = False
+            pb = ProgressBar(total=100, prefix='Downloading ' + instance.get('title'), decimals=3, length=50, fill='X',
+                             zfill='-')
             while done is False:
                 status, done = downloader.next_chunk()
-                print("Download %s %d%%." % (instance.get('title'), int(status.progress() * 100)))
+                # print("Download %s %d%%." % (instance.get('title'), int(status.progress() * 100)))
+                pb.print_progress_bar(int(status.progress() * 100))
         else:
             downloader = MediaIoBaseDownload(fd=fd, request=request, chunksize=download_rate * 1024)
             done = False
@@ -130,9 +133,6 @@ def download(instance):
                 if processing_time < 0.95:
                     time.sleep(0.95 - processing_time)
 
-        # pb = ProgressBar(total=100, prefix='Download ' + instance.get('title'), decimals=3, length=50, fill='X',
-        #                  zfill='-')
-        # pb.print_progress_bar(int(status.progress() * 100))
         fd.seek(0)
         with open(instance.get('saveLocation'), 'wb') as f:
             f.write(fd.read())

@@ -163,7 +163,7 @@ def downloader(service, option, instance_id, save_folder, id_list=None):
                 save_location = os.path.join(save_folder, file_local_name)
                 if os.path.exists(save_location):
                     save_location = common_utils.get_dup_name(save_folder, file_local_name)
-                print("Download '%s' in '%s'" % (instance.get('title'), save_location))
+                # print("Download '%s' in '%s'" % (instance.get('title'), save_location))
                 if is_workspace_document:
                     elem = {
                         'id': instance.get('id'),
