@@ -6,6 +6,7 @@ from datetime import datetime
 from console_progressbar import ProgressBar
 
 from googleapiclient.http import MediaIoBaseDownload
+from googleapiclient.http import MediaFileUpload
 from googleapiclient.discovery import build
 
 try:
@@ -173,6 +174,36 @@ def download(instance):
     return True
 
 
+def upload(service, path, parent_id, mime_type):
+    try:
+        filename = common_utils.get_file_name(path)
+        if mime_type is None:
+            media_body = MediaFileUpload(path, chunksize=1024 * 1024, resumable=True)
+        else:
+            media_body = MediaFileUpload(path, mimetype=mime_type, resumable=True)
+        body = {
+            'title': filename
+        }
+        # Set the parent folder.
+        if parent_id:
+            body['parents'] = [{'id': parent_id}]
+        # upload_rate = config_utils.get_network_limitation('upload')
+        # if upload_rate:
+        #     media_body.__init__(chunksize=upload_rate)
+        file = service.files().insert(
+            body=body,
+            media_body=media_body)
+        response = None
+        while response is None:
+            status, response = file.next_chunk()
+            if status:
+                sys.stdout.write("\rUpload %d%% complete." % int(status.progress() * 100))
+                sys.stdout.flush()
+        return True
+    except:
+        return False
+
+
 def get_folder_tree(service):
     tree = dict()
     folders = get_all_remote_folder(service)
@@ -201,6 +232,7 @@ def get_cloud_path(all_folders, instance_id, path=None):
         get_cloud_path(all_folders, elem.get('parents_id'), path)
     else:
         return False
+    print(path)
 
 
 def get_local_path(service, instance_id, sync_dir):
