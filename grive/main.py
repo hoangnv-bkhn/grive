@@ -282,37 +282,7 @@ def main():
                 elif arguments[arg_index] == "-lpr":
                     arg_index += 1
                     drive_utils.show_folder_recusive_by_path(service,  arguments[len(arguments) - 1], root)
-                    # try:
-                    #     local_files_list, local_folders_list = drive_utils.f_list_local(arguments[len(arguments) - 1], True)
-
-                    #     root_files_list, root_folders_list = drive_utils.f_list_local(config_utils.get_folder_sync_path(), True)
-                    #     x = list(filter(lambda e: e['canonicalPath']== arguments[len(arguments) - 1] , root_folders_list))
-                    #     if len(x) > 0:
-                    #         remote_folder = x[0]
-                    #         # remote_files_list = drive_utils.get_all_data(service, remote_folder['id'], True)
-                    #         remote_list = drive_utils.get_all_data(service, remote_folder['id'], True)
-                    #         remote_files_list = list(filter(lambda e : not e['mimeType'] == "application/vnd.google-apps.folder", remote_list))
-
-                    #         drive_utils.compare_and_change_type_show_local(drive, local_files_list, remote_files_list)
-
-                    #         result = drive_utils.filter_remote_only(remote_files_list, local_files_list)
-
-                    #         for file in result:
-                    #             table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'], common_utils.renderTypeShow(file['typeShow']),
-                    #                                                 common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])).strftime("%m/%d/%Y %H:%M"), file['mimeType'].split(".")[-1], common_utils.sizeof_fmt(common_utils.getFileSize(file))])
-
-                    #         for file in local_files_list:
-                    #             table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'], common_utils.renderTypeShow(file['typeShow']),
-                    #                                                         datetime.fromtimestamp(file['modifiedDate']).strftime("%m/%d/%Y %H:%M"), file['type'] if 'type' in file else "file", common_utils.sizeof_fmt(common_utils.getFileSize(file))])
-                    #     else:
-                    #         for file in local_files_list:
-                    #             file['typeShow'] = 'maytinh'
-
-                    # except FileNotFoundError as error:
-                    #     print(error)
-                    #     is_print = False
-
-                
+                    
                 # elif arguments[arg_index] == "-lf":
                 #     arg_index += 1
                 #     root_files_list, root_folders_list = drive_utils.f_list_local(config_utils.get_folder_sync_path(), True)

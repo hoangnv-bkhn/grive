@@ -1113,8 +1113,8 @@ def get_tree_folder(service):
     # print(files_local)
     # print(folders_local)
     # print("----")
-    print(files)
-    print(folders)
+    # print(files)
+    # print(folders)
     root = tree.newNode({"id": None, "name": "root" })
 
     for folder in folders:
@@ -1150,11 +1150,6 @@ def get_tree_folder(service):
         else:
             parents_key =  {"id": file["parents"][-1]["folder_id"], "name": file["parents"][-1]["folder_name"]}
             tree.add_node(root, parents_key, tmp_file)
-
-    # print("++++")
-    # tree.LevelOrderTraversal(root)
-    # sub_nodes = tree.get_direct_sub_node(root, {"id": None, "name": "root" })
-    # print("++++")
     return root
 
 
@@ -1163,23 +1158,20 @@ def check_remote_dir_files_sync(service, remote_folder_id, local_folder):
     remote_sub_direct_files_list = list(filter(lambda e: (not re.compile('folder', re.IGNORECASE).search(e.get('mimeType'))) and common_utils.is_parents_folder(remote_folder_id, e['parents']), remote_list))
     remote_sub_direct_folders_list = list(filter(lambda e: (re.compile('folder', re.IGNORECASE).search(e.get('mimeType'))) and common_utils.is_parents_folder(remote_folder_id, e['parents']), remote_list))
 
-    local_dir_files_list, local_folders_list = f_list_local(local_folder, True)
-
+    local_files_list, local_folders_list = f_list_local(local_folder, True)
+    local_sub_direct_files_list = list(filter(lambda e: e['canonicalPath'] == os.path.join(local_folder, e['title']) , local_files_list))
+    local_sub_direct_folders_list = list(filter(lambda e: e['canonicalPath'] == os.path.join(local_folder, e['title']) , local_folders_list))
     # print(remote_sub_direct_folders_list)
     # print("--")
-    # print(local_folders_list)
+    # print(local_sub_direct_folders_list)
     # print("--")
     # print(remote_sub_direct_files_list)
     # print("--")
-    # print(local_folders_list)
+    # print(local_sub_direct_files_list)
 
-    # if len(remote_sub_direct_files_list) != len(local_dir_files_list) or len(remote_sub_direct_folders_list) != len(local_folders_list):
-    #     print("false")
-    #     return False
-    # else:
     count = 0
     for remote_file in remote_sub_direct_files_list:
-        for local_file in local_dir_files_list:
+        for local_file in local_sub_direct_files_list:
             if remote_file['id'] == local_file['id']:
                 if remote_file['md5Checksum']:
                     if remote_file['md5Checksum'] == local_file['md5Checksum']:
@@ -1190,19 +1182,18 @@ def check_remote_dir_files_sync(service, remote_folder_id, local_folder):
                     break
     count2 = 0
     for remote_folder in remote_sub_direct_folders_list:
-        for local_folder in local_folders_list:
+        for local_folder in local_sub_direct_folders_list:
             if remote_folder['id'] == local_folder['id']:
                 if check_remote_dir_files_sync(service, remote_folder['id'], local_folder['canonicalPath']):
                     count2 += 1
                     break
-    if count == len(remote_sub_direct_files_list) and count2 == len (remote_sub_direct_folders_list):
+    if count == max(len(remote_sub_direct_files_list), len(local_sub_direct_files_list)) and count2 == max(len(remote_sub_direct_folders_list), len(local_sub_direct_folders_list)):
         return True
     else:
         return False
 
 
 def compare_and_change_type_show(service, remote_files_list, local_files_list):
-    # list_print = []
     for remote_file in remote_files_list:
         for local_file in local_files_list:
             if remote_file['id'] == local_file['id']:
@@ -1263,6 +1254,8 @@ def show_folder(service, folder_id):
     remote_files_list = []
     if(folder_id):
         remote_files_list = get_all_data(service, folder_id, 0)
+    else: 
+        return
     root_files_list, root_folders_list = f_list_local(config_utils.get_folder_sync_path(), True)
 
     if folder_id == 'root':
@@ -1276,7 +1269,8 @@ def show_folder(service, folder_id):
         if len(x) > 0:
             local_folder = x[0]
             local_files_list, local_folders_list = f_list_local(local_folder['canonicalPath'], False)
-
+            # print(remote_files_list)
+            # print(local_files_list)
             compare_and_change_type_show(service, remote_files_list, local_files_list)
 
             result= filter_local_only(local_files_list,remote_files_list)
@@ -1307,7 +1301,6 @@ def show_folder(service, folder_id):
         print(table)
 
 def show_folder_recusive(service, folder_id, folder_name, root_node):
-    # tree.LevelOrderTraversal(root_node)
     sub_node = tree.get_direct_sub_node(root_node, {"id": folder_id, "name": folder_name} if folder_name else {"id": folder_id})
     if not sub_node:
         return
