@@ -5,8 +5,11 @@ import threading
 import time
 import timeit
 from datetime import datetime
+import json
+# from console_progressbar import ProgressBar
 
 from googleapiclient.http import MediaIoBaseDownload
+from googleapiclient.http import MediaFileUpload
 from googleapiclient.discovery import build
 
 try:
@@ -127,6 +130,9 @@ def download(instance):
                 if processing_time < 0.95:
                     time.sleep(0.95 - processing_time)
 
+        # pb = ProgressBar(total=100, prefix='Download ' + instance.get('title'), decimals=3, length=50, fill='X',
+        #                  zfill='-')
+        # pb.print_progress_bar(int(status.progress() * 100))
         fd.seek(0)
         with open(instance.get('saveLocation'), 'wb') as f:
             f.write(fd.read())
@@ -139,6 +145,129 @@ def download(instance):
     os.utime(instance.get('saveLocation'), (stats.st_atime, common_utils.utc2local(
         datetime.strptime(instance.get('modifiedDate'), '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
 
+    return True
+
+
+def upload(instance):
+    try:
+        creds = auth_utils.get_user_credential()
+        service = build('drive', 'v2', credentials=creds)
+        filename = instance.get('title')
+        path = instance.get('path')
+        try:
+            f_exclusive = os.getxattr(path, 'user.excludeUpload')
+            f_exclusive = f_exclusive.decode()
+        except:
+            f_exclusive = None
+        if f_exclusive is not None:
+            if f_exclusive == 'True':
+                return True
+        parent_id = instance.get('parent_id')
+        set_id = instance.get('set_id')
+        with open(common_utils.format_dict) as f:
+            format_add = json.load(f)
+        check_type = format_add.get(instance.get('mimeType'))
+        upload_rate = config_utils.get_network_limitation('upload')
+        if not upload_rate:
+            media_body = MediaFileUpload(path, chunksize=275000, resumable=True)
+        else:
+            media_body = MediaFileUpload(path, chunksize=upload_rate * 1024, resumable=True)
+        if check_type is not None:
+            body = {
+                'title': os.path.splitext(filename)[0],
+                'mimeType': instance.get('mimeType')
+            }
+        else:
+            body = {
+                'title': filename
+            }
+        # Set the parent folder.
+        if parent_id is not None:
+            body['parents'] = [{'id': parent_id}]
+        file = service.files().insert(body=body, media_body=media_body, fields='id')
+        response = None
+        while response is None:
+            status, response = file.next_chunk()
+            if status:
+                start = timeit.default_timer()
+                print("Upload %s file %d%% complete." % (filename, int(status.progress() * 100)))
+                stop = timeit.default_timer()
+                processing_time = stop - start
+                if processing_time < 0.95:
+                    time.sleep(0.95 - processing_time)
+        file = service.files().get(fileId=response.get('id')).execute()
+        if set_id is True:
+            os.setxattr(path, 'user.id', str.encode(response.get('id')))
+            stats = os.stat(path)
+            os.utime(path, (stats.st_atime, common_utils.utc2local(
+                datetime.strptime(file.get('modifiedDate'), '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
+        print("Upload %s file complete." % filename)
+        return True
+    except:
+        return False
+
+
+def update_file(service, file_id, path, option):
+    """
+    Args:
+        option: True when update file, False when rename file
+
+    Returns:
+        True or False
+    """
+    try:
+        f_exclusive = os.getxattr(path, 'user.excludeUpload')
+        f_exclusive = f_exclusive.decode()
+    except:
+        f_exclusive = None
+    if f_exclusive is not None:
+        if f_exclusive == 'True':
+            return True
+    try:
+        # First retrieve the file from the API.
+        file = service.files().get(fileId=file_id).execute()
+
+        with open(common_utils.format_dict) as f:
+            format_add = json.load(f)
+        check_type = format_add.get(file.get('mimeType'))
+        filename = common_utils.get_file_name(path)
+        if check_type is not None:
+            filename = os.path.splitext(filename)[0]
+        # File's new metadata.
+        file['title'] = filename
+
+        if option is True:
+            # File's new content.
+            media_body = MediaFileUpload(path, resumable=True)
+            updated_file = service.files().update(
+                fileId=file_id,
+                body=file,
+                media_body=media_body).execute()
+            print("Upload %s file complete." % filename)
+        else:
+            updated_file = service.files().patch(
+                fileId=file_id,
+                body=file,
+                fields='title').execute()
+            print("Update %s file complete." % filename)
+        stats = os.stat(path)
+        os.utime(path, (stats.st_atime, common_utils.utc2local(
+            datetime.strptime(updated_file.get('modifiedDate'), '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
+        return True
+    except:
+        return None
+
+
+def move_file_remote(service, file_id, parent_id):
+    # Retrieve the existing parents to remove
+    file = service.files().get(fileId=file_id, fields='parents').execute()
+    previous_parents = ",".join([parent["id"] for parent in file.get('parents')])
+    # Move the file to the new folder
+    file = service.files().update(fileId=file_id,
+                                  addParents=parent_id,
+                                  removeParents=previous_parents,
+                                  fields='id, parents').execute()
+    print("Moved %s complete." % file_id)
     return True
 
 
@@ -170,6 +299,7 @@ def get_cloud_path(all_folders, instance_id, path=None):
         get_cloud_path(all_folders, elem.get('parents_id'), path)
     else:
         return False
+    # print(path)
 
 
 def get_local_path(service, instance_id, sync_dir):
@@ -228,5 +358,40 @@ def query_google_api(service, query):
             result.append(file)
         page_token = response.get('nextPageToken', None)
         if page_token is None:
+            break
+    return result
+
+
+def retrieve_all_changes(service, start_change_id=None):
+    """Retrieve a list of Change resources.
+
+    Args:
+      service: Drive API service instance.
+      start_change_id: ID of the change to start retrieving subsequent changes
+                       from or None.
+    Returns:
+      List of Change resources.
+    """
+    result = []
+    page_token = None
+    while True:
+        try:
+            param = {}
+            if start_change_id:
+                param['startChangeId'] = start_change_id
+            if page_token:
+                param['pageToken'] = page_token
+            changes = service.changes().list(**param).execute()
+
+            for file in changes['items']:
+                result.append({
+                    'id': file['fileId'],
+                    'c_time': datetime.strptime(file['modificationDate'], '%Y-%m-%dT%H:%M:%S.%fZ').timestamp()
+                })
+
+            page_token = changes.get('nextPageToken')
+            if not page_token:
+                break
+        except:
             break
     return result
