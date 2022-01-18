@@ -593,7 +593,9 @@ def f_sync(service, local_path):
                 id_list.clear()
             elif last_edit == 'local':
                 uploader(service, '-u', os.path.join(i['absolute_path'], i['name']), None, True, id_list)
-                print(id_list)
+                for file in id_list:
+                    drive_services.move_file_remote(service, i['id'], file['parent_id'])
+                id_list.clear()
     clean_folder_empty(local_path, True)
     return True
 

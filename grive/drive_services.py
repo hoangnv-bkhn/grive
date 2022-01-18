@@ -230,6 +230,19 @@ def update_file(service, file_id, path, option):
         return None
 
 
+def move_file_remote(service, file_id, parent_id):
+    # Retrieve the existing parents to remove
+    file = service.files().get(fileId=file_id, fields='parents').execute()
+    previous_parents = ",".join([parent["id"] for parent in file.get('parents')])
+    # Move the file to the new folder
+    file = service.files().update(fileId=file_id,
+                                  addParents=parent_id,
+                                  removeParents=previous_parents,
+                                  fields='id, parents').execute()
+    print("Moved %s complete." % file_id)
+    return True
+
+
 def get_folder_tree(service):
     tree = dict()
     folders = get_all_remote_folder(service)
