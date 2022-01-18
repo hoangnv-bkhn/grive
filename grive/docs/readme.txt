@@ -32,7 +32,7 @@
                     (Default is "sync_grive" directory in your Documents folder)
                 Synchronous Cycle (Minute): Integer in range 1 ~ 60
                         (Default is '1' minute)
-                Network Speed Limitation: Integer in range 1 ~ 102400 KB/s
+                Network Speed Limitation: Integer in range 1 ~ 5120 KB/s
                     (e.g. for limit download rate to 100 KB/s, can input "3 download 100",
                           for disable download limitation, input 3 download n)
                     (Default upload (download) is False)

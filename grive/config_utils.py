@@ -102,10 +102,10 @@ def set_network_limitation(value):
     if len(value) == 2:
         try:
             rate = int(value[1])
-            if value[0].lower() == 'upload' and 0 < rate < 102400:
+            if value[0].lower() == 'upload' and 0 < rate < 5120:
                 config['Network_Speed_Limitation']['Upload_Rate'] = rate
                 return True
-            elif value[0].lower() == 'download' and 0 < rate < 102400:
+            elif value[0].lower() == 'download' and 0 < rate < 5120:
                 config['Network_Speed_Limitation']['Download_Rate'] = rate
                 return True
             else:
