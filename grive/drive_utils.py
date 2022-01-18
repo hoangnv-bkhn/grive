@@ -1,3 +1,4 @@
+import threading
 from builtins import str
 import json
 import os
@@ -9,22 +10,23 @@ from concurrent.futures.thread import ThreadPoolExecutor
 import pyperclip
 import hashlib
 import re
-
+from prettytable import PrettyTable
 from datetime import datetime
+
+from grive.config_utils import get_folder_sync_path
 
 try:
     # set directory for relativistic import
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     import common_utils
     import config_utils
-    import auth_utils
     import drive_services
+    import tree
 except ImportError:
     from . import common_utils
     from . import config_utils
-    from . import auth_utils
     from . import drive_services
-
+    from . import tree
 
 # def f_all(drive, fold_id, file_list, download, sync_folder, option, folder_list):
 #     """Recursively download or just list files in folder
@@ -160,7 +162,7 @@ def downloader(service, option, instance_id, save_folder, id_list=None):
                 save_location = os.path.join(save_folder, file_local_name)
                 if os.path.exists(save_location):
                     save_location = common_utils.get_dup_name(save_folder, file_local_name)
-                # print("Download '%s' in '%s' !" % (instance.get('title'), save_location))
+                print("Download '%s' in '%s'" % (instance.get('title'), save_location))
                 if is_workspace_document:
                     elem = {
                         'id': instance.get('id'),
@@ -876,17 +878,15 @@ def get_info(drive, option, instance):
         if not path_err and not default_opt:
             print('%s is invalid !' % instance)
 
-    print(result_local)
-    print("=====")
-    print(result_remote)
+    # print(result_local)
+    # print("=====")
+    # print(result_remote)
     # print("=====")
     # print(Path().resolve())
 
     return result_local, result_remote
 
-
 def file_restore(drive, addr_list):
-    print(addr_list)
     for addr in addr_list:
         # check if file_id valid
         if is_valid_id(drive, addr):
@@ -897,7 +897,7 @@ def file_restore(drive, addr_list):
             if is_trash(drive, r_file['id']):
                 r_file.UnTrash()
                 print("%s is restored" % f_name)
-            # ele done nothing
+            # else done nothing
             else:
                 print("%s is not trash" % f_name)
                 return
@@ -1108,41 +1108,105 @@ def get_all_data(service, keyword, recursive):
 def f_open(folder):
     os.system('xdg-open "%s"' % config_utils.get_folder_sync_path())
 
+def get_tree_folder(service):
+    files_local, folders_local, files, folders = get_list_file_for_sync(service, config_utils.get_folder_sync_path() , "all")
+    # print(files_local)
+    # print(folders_local)
+    # print("----")
+    print(files)
+    print(folders)
+    root = tree.newNode({"id": None, "name": "root" })
+
+    for folder in folders:
+        tmp_folder = {"id": folder["id"], "name": folder["name"], 'type': 'folder'}
+        if folder['parents'] == []:
+            tree.add_node(root, {"id": None, "name": "root" }, tmp_folder)
+        else:
+            parents_key =  {"id": folder["parents"][-1]["folder_id"], "name": folder["parents"][-1]["folder_name"]}
+
+            tree.add_node(root, parents_key, tmp_folder)
+
+    for file in files:
+        tmp_file = {"id": file["id"], "name": file["name"], 'type': 'file'}
+        if file['parents'] == []:
+            tree.add_node(root, {"id": None, "name": "root" }, tmp_file)
+        else:
+            parents_key =  {"id": file["parents"][-1]["folder_id"], "name": file["parents"][-1]["folder_name"]}
+            tree.add_node(root, parents_key, tmp_file)
+
+    for folder in folders_local:
+        tmp_folder = {"id": folder["id"], "name": folder["name"], 'type': 'folder', 'canonicalPath': folder['absolute_path'] + "/" + folder['name']}
+        if folder['parents'] == []:
+            tree.add_node(root, {"id": None, "name": "root" }, tmp_folder)
+        else:
+            parents_key =  {"id": folder["parents"][-1]["folder_id"], "name": folder["parents"][-1]["folder_name"]}
+
+            tree.add_node(root, parents_key, tmp_folder)
+
+    for file in files_local:
+        tmp_file = {"id": file["id"], "name": file["name"], "type": 'file', 'canonicalPath': folder['absolute_path'] + "/" +folder['name']}
+        if file['parents'] == []:
+            tree.add_node(root, {"id": None, "name": "root" }, tmp_file)
+        else:
+            parents_key =  {"id": file["parents"][-1]["folder_id"], "name": file["parents"][-1]["folder_name"]}
+            tree.add_node(root, parents_key, tmp_file)
+
+    # print("++++")
+    # tree.LevelOrderTraversal(root)
+    # sub_nodes = tree.get_direct_sub_node(root, {"id": None, "name": "root" })
+    # print("++++")
+    return root
+
 
 def check_remote_dir_files_sync(service, remote_folder_id, local_folder):
-    remote_dir_files_list = get_all_data(service, remote_folder_id, True)
+    remote_list = get_all_data(service, remote_folder_id, True)
+    remote_sub_direct_files_list = list(filter(lambda e: (not re.compile('folder', re.IGNORECASE).search(e.get('mimeType'))) and common_utils.is_parents_folder(remote_folder_id, e['parents']), remote_list))
+    remote_sub_direct_folders_list = list(filter(lambda e: (re.compile('folder', re.IGNORECASE).search(e.get('mimeType'))) and common_utils.is_parents_folder(remote_folder_id, e['parents']), remote_list))
+
     local_dir_files_list, local_folders_list = f_list_local(local_folder, True)
 
-    if len(remote_dir_files_list) != len(local_dir_files_list):
-        return False
-    else:
-        count = 0
-        for remote_file in remote_dir_files_list:
-            for local_file in local_dir_files_list:
-                if remote_file['id'] == local_file['id']:
-                    if remote_file['md5Checksum']:
-                        if remote_file['md5Checksum'] == local_file['md5Checksum']:
-                            count += 1
-                            break
-                    elif remote_file['fileSize'] == remote_file['fileSize']:
+    # print(remote_sub_direct_folders_list)
+    # print("--")
+    # print(local_folders_list)
+    # print("--")
+    # print(remote_sub_direct_files_list)
+    # print("--")
+    # print(local_folders_list)
+
+    # if len(remote_sub_direct_files_list) != len(local_dir_files_list) or len(remote_sub_direct_folders_list) != len(local_folders_list):
+    #     print("false")
+    #     return False
+    # else:
+    count = 0
+    for remote_file in remote_sub_direct_files_list:
+        for local_file in local_dir_files_list:
+            if remote_file['id'] == local_file['id']:
+                if remote_file['md5Checksum']:
+                    if remote_file['md5Checksum'] == local_file['md5Checksum']:
                         count += 1
                         break
-        if count == len(remote_dir_files_list):
-            return True
-        else:
-            return False
+                elif remote_file['fileSize'] == remote_file['fileSize']:
+                    count += 1
+                    break
+    count2 = 0
+    for remote_folder in remote_sub_direct_folders_list:
+        for local_folder in local_folders_list:
+            if remote_folder['id'] == local_folder['id']:
+                if check_remote_dir_files_sync(service, remote_folder['id'], local_folder['canonicalPath']):
+                    count2 += 1
+                    break
+    if count == len(remote_sub_direct_files_list) and count2 == len (remote_sub_direct_folders_list):
+        return True
+    else:
+        return False
 
 
 def compare_and_change_type_show(service, remote_files_list, local_files_list):
+    # list_print = []
     for remote_file in remote_files_list:
         for local_file in local_files_list:
             if remote_file['id'] == local_file['id']:
-                if re.compile('folder', re.IGNORECASE).search(remote_file.get('mimeType')):
-                    if check_remote_dir_files_sync(service, remote_file['id'], local_file['canonicalPath']):
-                        remote_file['typeShow'] = "dongbo"
-                    else:
-                        remote_file['typeShow'] = "notdongbo"
-                else:
+                if not re.compile('folder', re.IGNORECASE).search(remote_file.get('mimeType')):
                     if remote_file['md5Checksum']:
                         if remote_file['md5Checksum'] == local_file['md5Checksum']:
                             remote_file['typeShow'] = "dongbo"
@@ -1151,6 +1215,12 @@ def compare_and_change_type_show(service, remote_files_list, local_files_list):
                     else:
                         if remote_file['fileSize'] == local_file['fileSize']:
                             remote_file['typeShow'] = "dongbo"
+                else:
+                    if check_remote_dir_files_sync(service, remote_file['id'], local_file['canonicalPath']):
+                        remote_file['typeShow'] = "dongbo"
+                    else:
+                        remote_file['typeShow'] = "notdongbo"
+                # list_print.append(remote_file)
                 break
         if remote_file.get('typeShow') is None:
             remote_file['typeShow'] = "dammay"
@@ -1177,33 +1247,184 @@ def compare_and_change_type_show_local(service, local_files_list, remote_files_l
                 break
         if local_file['typeShow'] == None: local_file['typeShow'] = "maytinh"
 
+def get_direct_folders_remote(service, keyword):
+    root_remote_files_list = get_all_data(service, keyword, 0)
+    return list(filter(lambda e: e['mimeType'] == "application/vnd.google-apps.folder"))
 
-def filter_none_id(local_files_list):
+def get_direct_files_remote(service, keyword):
+    root_remote_files_list = get_all_data(service, keyword, 0)
+    return list(filter(lambda e: e['mimeType'] != "application/vnd.google-apps.folder"))
+
+def show_folder(service, folder_id):
+    table = PrettyTable()
+    table.field_names = ['Name', 'Id', 'Status', 'Date Modified', 'Type' , 'Size']
+    is_print = False
+
+    remote_files_list = []
+    if(folder_id):
+        remote_files_list = get_all_data(service, folder_id, 0)
+    root_files_list, root_folders_list = f_list_local(config_utils.get_folder_sync_path(), True)
+
+    if folder_id == 'root':
+        x = []
+        tmp ={'canonicalPath': config_utils.get_folder_sync_path()}
+        x.append(tmp)
+    else:
+        x = list(filter(lambda e: e['id']== folder_id , root_folders_list))
+
+    if(len(remote_files_list) > 0) :
+        if len(x) > 0:
+            local_folder = x[0]
+            local_files_list, local_folders_list = f_list_local(local_folder['canonicalPath'], False)
+
+            compare_and_change_type_show(service, remote_files_list, local_files_list)
+
+            result= filter_local_only(local_files_list,remote_files_list)
+            for file in result:
+                table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'] if file['id'] else '', common_utils.renderTypeShow(file['typeShow']),
+                                                                    datetime.fromtimestamp(file['modifiedDate']).strftime("%m/%d/%Y %H:%M"), file['type'], common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+
+        else:
+            for file in remote_files_list:
+                file['typeShow']='dammay'
+
+        for file in remote_files_list:
+            table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'], common_utils.renderTypeShow(file['typeShow']),
+                                common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])).strftime("%m/%d/%Y %H:%M"), file['mimeType'].split(".")[-1], common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+        is_print = True
+    else: # truong hop ko co tren remote
+        if len(x) > 0: #neu co tren local
+            local_folder = x[0]
+            local_files_list, local_folders_list = f_list_local(local_folder['canonicalPath'], False)
+
+            for file in local_files_list:
+                file['typeShow']='maytinh'
+                table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'] if file['id'] else '', common_utils.renderTypeShow(file['typeShow']),
+                                                                    datetime.fromtimestamp(file['modifiedDate']).strftime("%m/%d/%Y %H:%M"), file['type'], common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+            is_print = True
+    if is_print:
+        table.align = "l"
+        print(table)
+
+def show_folder_recusive(service, folder_id, folder_name, root_node):
+    # tree.LevelOrderTraversal(root_node)
+    sub_node = tree.get_direct_sub_node(root_node, {"id": folder_id, "name": folder_name} if folder_name else {"id": folder_id})
+    if not sub_node:
+        return
+    print(folder_name)
+    if (folder_id == None and folder_name == 'root'):
+        show_folder(service, 'root')
+    else:
+        show_folder(service, folder_id)
+
+    for node in sub_node:
+        if node.key['type'] == 'folder':
+            show_folder_recusive(service, node.key['id'], node.key['name'], root_node)
+
+def show_folder_by_path(service, folder_path):
+    table = PrettyTable()
+    table.field_names = ['Name', 'Id', 'Status', 'Date Modified', 'Type' , 'Size']
+    is_print = False
+
+    try:
+        local_files_list, local_folders_list = f_list_local(folder_path, False)
+
+        if(folder_path == config_utils.get_folder_sync_path()):
+            x = []
+            x.append({'id': 'root'})
+        else:
+            root_files_list, root_folders_list = f_list_local(config_utils.get_folder_sync_path(), True)
+            x = list(filter(lambda e: e['canonicalPath']== folder_path , root_folders_list))
+        if len(x) > 0:
+            remote_folder = x[0]
+            remote_files_list = get_all_data(service, remote_folder['id'], False)
+
+            compare_and_change_type_show_local(service, local_files_list, remote_files_list)
+
+            result = filter_remote_only(remote_files_list, local_files_list)
+
+            for file in result:
+                table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'], common_utils.renderTypeShow(file['typeShow']),
+                                    common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])).strftime("%m/%d/%Y %H:%M"), file['mimeType'].split(".")[-1], common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+
+            for file in local_files_list:
+                table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'], common_utils.renderTypeShow(file['typeShow']),
+                                    datetime.fromtimestamp(file['modifiedDate']).strftime("%m/%d/%Y %H:%M"), file['type'] if 'type' in file else "file", common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+            is_print = True
+        else:
+            for file in local_files_list:
+                file['typeShow'] = 'maytinh'
+
+    except FileNotFoundError as error:
+        print(error)
+        is_print = False
+
+    if is_print:
+        table.align = "l"
+        print(table)
+
+def show_folder_recusive_by_path(service, path, root_node):
+    # tree.LevelOrderTraversal(root_node)
+    if path == config_utils.get_folder_sync_path():
+        show_folder_recusive(service, None, "root" , root_node)
+    else:
+        node = tree.find_node_by_canonicalPath(root_node, path)
+        if node == None:
+            print('%s is invalid !' % (path))
+        elif node.key['type'] == 'file':
+            print('%s is path of file ,not path of folder!')
+        else:
+            folder_id = node.key['id']
+            folder_name = node.key['name']
+            print(folder_id)
+            print(folder_name)
+            show_folder_recusive(service, folder_id, folder_name, root_node)
+
+def filter_local_only(local_files_list,remote_files_list):
     result = []
     for local_file in local_files_list:
         if not local_file['id']:
             local_file['typeShow'] = 'maytinh'
             result.append(local_file)
+        else:
+            x = list(filter(lambda e: e['id']== local_file['id'], remote_files_list))
+            if len(x) == 0:
+                local_file['typeShow'] = 'maytinh'
+                result.append(local_file)
     return result
 
+def filter_remote_only(remotes_list,local_files_list):
+    result = []
+    for remote in remotes_list:
+        x = list(filter(lambda e: e['id']== remote['id'], local_files_list))
+        if len(x) == 0:
+            remote['typeShow'] = 'dammay'
+            result.append(remote)
+    return result
 
 def f_calculate_usage_of_folder(service):
-    driveAudioUsage = 0
-    drivePhotoUsage = 0
-    driveMoviesUsage = 0
-    driveDocumentUsage = 0
-    driveOthersUsage = 0
+    drive_audio_usage = 0
+    drive_photo_usage = 0
+    drive_movies_usage = 0
+    drive_document_usage = 0
+    drive_others_usage = 0
 
-    file_list = get_all_data(service, 'root', True)
-    for file in file_list:
+    # file_list = get_all_data(service, 'root', True)
+    lists = get_all_data(service, "root", True)
+    files_list = list(filter(lambda e : not e['mimeType'] == "application/vnd.google-apps.folder", lists))
+
+    for file in files_list:
         if common_utils.isAudioFile(file):
-            driveAudioUsage += common_utils.getFileSize(file)
+            drive_audio_usage += common_utils.getFileSize(file)
         elif common_utils.isImageFile(file):
-            drivePhotoUsage += common_utils.getFileSize(file)
+            drive_photo_usage += common_utils.getFileSize(file)
         elif common_utils.isVideoFile(file):
-            driveMoviesUsage += common_utils.getFileSize(file)
+            drive_movies_usage += common_utils.getFileSize(file)
         elif common_utils.isDocument(file):
-            driveDocumentUsage += common_utils.getFileSize(file)
+            drive_document_usage += common_utils.getFileSize(file)
         else:
-            driveOthersUsage += common_utils.getFileSize(file)
-    return driveAudioUsage, drivePhotoUsage, driveMoviesUsage, driveDocumentUsage, driveOthersUsage
+            drive_others_usage += common_utils.getFileSize(file)
+    return drive_audio_usage, drive_photo_usage, drive_movies_usage, drive_document_usage, drive_others_usage
+
+
+

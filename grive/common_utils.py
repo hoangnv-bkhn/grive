@@ -8,6 +8,7 @@ import ntpath
 import errno
 import re
 from pydrive import settings
+from prettytable import PrettyTable
 
 import pwd
 
@@ -192,7 +193,7 @@ def check_option(option, char, length):
 
 
 def sizeof_fmt(num, suffix='B'):
-    if num == "":
+    if num == "" or num == None:
         return num
     for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
         if abs(num) < 1024.0:
@@ -212,37 +213,56 @@ def renderTypeShow(type):
 
 
 def isAudioFile(file):
-    if re.compile('audio', re.IGNORECASE).search(file['type']):
+    if re.compile('audio', re.IGNORECASE).search(file['mimeType']):
         return True
     else:
         return False
 
 
 def isImageFile(file):
-    if re.compile('image', re.IGNORECASE).search(file['type']):
+    if re.compile('image', re.IGNORECASE).search(file['mimeType']):
         return True
     else:
         return False
 
 
 def isVideoFile(file):
-    if re.compile('video', re.IGNORECASE).search(file['type']):
+    if re.compile('video', re.IGNORECASE).search(file['mimeType']):
         return True
     else:
         return False
 
 
 def isDocument(file):
-    if re.compile('document', re.IGNORECASE).search(file['type']):
+    if re.compile('document', re.IGNORECASE).search(file['mimeType']):
         return True
     else:
         return False
 
 
 def getFileSize(file):
-    if file['fileSize'] == "": return ""
-    size = file['fileSize']
-    return int(size)
+    if file.get("fileSize"): 
+        size = file['fileSize']
+        return int(size)
+    else: 
+        return ""
+
+def is_parents_folder(id_parents, parents): 
+    for elem in parents:
+        if elem['id'] == id_parents:
+            return True
+    
+    return False
+
+def print_table_remote(arr_files):
+    table = PrettyTable()
+    table.field_names = ['Name', 'Id', 'Status', 'Date Modified', 'Type' , 'Size']
+    if len(arr_files) > 0:
+        for file in arr_files: 
+            table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'], renderTypeShow(file['typeShow']),
+                                                                utc2local(datetime.fromtimestamp(file['modifiedDate'])).strftime("%m/%d/%Y %H:%M"), file['mimeType'].split(".")[-1], sizeof_fmt(int(file['fileSize'])) if file['fileSize'] else "" ])
+        print(table)
+        
 
 
 def get_dup_name(folder, name):
