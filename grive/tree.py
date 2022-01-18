@@ -54,7 +54,8 @@ def add_node(root, index, value):
             q.pop(0);
             tmp_key = {'id': p.key['id'], 'name': p.key['name']}
             if tmp_key == index:
-                if len(list(filter(lambda e: e.key==value,p.child))) == 0:
+                tmp_value = {'id': value['id'], 'name': value['name']}
+                if len(list(filter(lambda e: {'id': e.key['id'], 'name': e.key['name']}==tmp_value,p.child))) == 0:
                     p.child.append(newNode(value))
    
             # Enqueue all children of the dequeued item
