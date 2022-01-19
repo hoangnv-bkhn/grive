@@ -240,8 +240,8 @@ def uploader(service, option, path, parent_id, for_sync, id_list=None):
             check_location = None
             for i in f_info_local['parents']:
                 if check_location is not False:
-                    check_path = drive_services.get_local_path(service, i['folder_id'],
-                                                               config_utils.get_folder_sync_path())
+                    check_path = drive_services.filter_trash(service, i['folder_id'],
+                                                             config_utils.get_folder_sync_path())
                     if check_path is not None:
                         if os.path.normpath(check_path) != os.path.normpath(i['folder_path']):
                             check_location = False
@@ -519,13 +519,15 @@ def get_list_file_for_sync(service, local_path, option):
 
 
 def f_sync(service, local_path):
+    if local_path is None:
+        local_path = config_utils.get_folder_sync_path()
     id_list = []
     file_info_local, folder_info_local, file_info, folder_info = get_list_file_for_sync(service, local_path, 'all')
     change_list = None
     for i in file_info_local:
         check_file = None
         if i['id'] is not None:
-            path = drive_services.get_local_path(service, i['id'], config_utils.get_folder_sync_path())
+            path = drive_services.filter_trash(service, i['id'], config_utils.get_folder_sync_path())
             if path is not None:
                 if os.path.normpath(i['absolute_path']) != os.path.normpath(path):
                     check_file = False
@@ -544,8 +546,8 @@ def f_sync(service, local_path):
                         check_id_exist = True
                         if file['modifiedDate'] > i['modifiedDate']:
                             os.remove(os.path.join(i['absolute_path'], i['name']))
-                            save_location = drive_services.get_local_path(service, file['id'],
-                                                                          config_utils.get_folder_sync_path())
+                            save_location = drive_services.filter_trash(service, file['id'],
+                                                                        config_utils.get_folder_sync_path())
                             downloader(service, '-d', file['id'], save_location, id_list)
                             with ThreadPoolExecutor(5) as executor:
                                 executor.map(drive_services.download, id_list)
@@ -598,7 +600,7 @@ def f_sync(service, local_path):
                         break
             if last_edit == 'remote':
                 os.remove(os.path.join(i['absolute_path'], i['name']))
-                save_location = drive_services.get_local_path(service, i['id'], config_utils.get_folder_sync_path())
+                save_location = drive_services.filter_trash(service, i['id'], config_utils.get_folder_sync_path())
                 downloader(service, '-d', i['id'], save_location, id_list)
                 with ThreadPoolExecutor(5) as executor:
                     executor.map(drive_services.download, id_list)
@@ -638,7 +640,9 @@ def clean_folder_empty(service, path, is_root=True):
                 When you move the folder on the remote and then run the sync, the folder on the remote will be deleted.
                 """
                 try:
-                    service.files().delete(fileId=f_id).execute()
+                    f_list = drive_services.get_raw_data(service, f_id, False)
+                    if len(f_list) == 0:
+                        service.files().delete(fileId=f_id).execute()
                 except:
                     return
                 shutil.rmtree(path)

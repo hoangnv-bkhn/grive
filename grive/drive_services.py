@@ -282,6 +282,14 @@ def move_file_remote(service, file_id, parent_id, path):
     return True
 
 
+def filter_trash(service, instance_id, sync_dir):
+    path, trashed = get_local_path(service, instance_id, sync_dir)
+    if trashed is False:
+        return path
+    else:
+        return None
+
+
 def get_folder_tree(service):
     tree = dict()
     folders = get_all_remote_folder(service)
