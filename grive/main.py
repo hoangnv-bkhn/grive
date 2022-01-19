@@ -30,7 +30,7 @@ require_auth = [
     "-ls_trash", "ls_trash", "-lt",
     "-ls_folder",
     "-restore", "restore",
-    "-z",
+    "-sy",
     "-usage", "usage",
     "-q", "-qc",
     "-xs"
@@ -257,9 +257,12 @@ def main():
                         x.add_row(["Owner", 'Me', '\n'])
                     for i, elem in enumerate(info_remote.get('userPermission')):
                         if i == 0:
-                            x.add_row(["Permission", elem.get('name').ljust(30) + elem.get('role').ljust(15) + elem.get('emailAddress'), '\n'])
+                            x.add_row(["Permission", elem.get('name').ljust(30) + elem.get('role').ljust(15) + elem.get(
+                                'emailAddress'), '\n'])
                         else:
-                            x.add_row(["", elem.get('name').ljust(30) + elem.get('role').ljust(15) + elem.get('emailAddress'), '\n'])
+                            x.add_row(
+                                ["", elem.get('name').ljust(30) + elem.get('role').ljust(15) + elem.get('emailAddress'),
+                                 '\n'])
                     if shared:
                         x.add_row(["Share Link", info_remote.get('alternateLink'), '\n'])
                     x.align = "l"
@@ -292,7 +295,7 @@ def main():
 
                 elif arguments[arg_index] == "-lpr":
                     arg_index += 1
-                    drive_utils.show_folder_recusive_by_path(service,  arguments[len(arguments) - 1], root)
+                    drive_utils.show_folder_recusive_by_path(service, arguments[len(arguments) - 1], root)
 
                 # elif arguments[arg_index] == "-lf":
                 #     arg_index += 1
@@ -373,7 +376,8 @@ def main():
                 table.add_row([(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], file['id'],
                                common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])).strftime(
                                    "%m/%d/%Y %H:%M"),
-                               file['mimeType'].split(".")[-1], common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                               file['mimeType'].split(".")[-1],
+                               common_utils.sizeof_fmt(common_utils.getFileSize(file))])
             table.align = 'l'
             print(table)
         elif arguments[arg_index] == "-by_cron":

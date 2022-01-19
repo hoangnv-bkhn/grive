@@ -193,7 +193,7 @@ def uploader(service, option, path, parent_id, for_sync, id_list=None):
         overwrite = False
         is_local_sync = False
         f_id = None
-        file_info_local, folder_info_local, file_info, folder_info = None, None, None, None
+        file_info_local, folder_info_local, file_info, folder_info = [], [], [], []
         if os.path.exists(path) is False:
             return False
         if id_list is None:
@@ -243,7 +243,7 @@ def uploader(service, option, path, parent_id, for_sync, id_list=None):
                     check_path = drive_services.get_local_path(service, i['folder_id'],
                                                                config_utils.get_folder_sync_path())
                     if check_path is not None:
-                        if os.path.normpath(check_path) != os.path.normpath(i['folder_absolute_path']):
+                        if os.path.normpath(check_path) != os.path.normpath(i['folder_path']):
                             check_location = False
                         else:
                             f_new_id = i['folder_id']
@@ -264,7 +264,7 @@ def uploader(service, option, path, parent_id, for_sync, id_list=None):
                     file = service.files().insert(body=file_metadata,
                                                   fields='id').execute()
                     f_new_id = file.get('id')
-                    os.setxattr(os.path.join(i['folder_absolute_path'], i['folder_name']), 'user.id',
+                    os.setxattr(os.path.join(i['folder_path'], i['folder_name']), 'user.id',
                                 str.encode(f_new_id))
         if os.path.isdir(path):
             if parent_id is None and is_local_sync is True:
@@ -389,7 +389,7 @@ def get_file_info_for_sync(f_list, absolute_path, parents, parent_folder_id, fil
                     parents.append({
                         "folder_name": i['title'],
                         "folder_id": i['id'],
-                        "folder_absolute_path": absolute_path
+                        "folder_path": absolute_path
                     })
                     parents_len = len(parents) - 1
                     get_file_info_for_sync(f_list, temp_path, parents, i['id'], file_info_list, folder_info_list)
@@ -412,7 +412,7 @@ def get_file_info_for_sync(f_list, absolute_path, parents, parent_folder_id, fil
                 continue
         return file_info_list, folder_info_list
     except:
-        return None, None
+        return [], []
 
 
 def get_folder_tree_for_sync(path, sub_path, parents):
@@ -473,7 +473,7 @@ def get_file_info_in_local(path, is_root, parents, parent_folder_id, file_info_l
                 parents.append({
                     "folder_name": entry.name,
                     "folder_id": f_id,
-                    "folder_absolute_path": os.path.dirname(entry.path)
+                    "folder_path": os.path.dirname(entry.path)
                 })
                 parents_len = len(parents) - 1
                 get_file_info_in_local(entry.path, is_root, parents, f_id, file_info_list, folder_info_list)
@@ -493,14 +493,14 @@ def get_file_info_in_local(path, is_root, parents, parent_folder_id, file_info_l
                 file_info_list.append(obj)
         return file_info_list, folder_info_list
     except:
-        return None, None
+        return [], []
 
 
 def get_list_file_for_sync(service, local_path, option):
     if option == 'remote' or option == 'all':
         f_list = drive_services.get_raw_data(service, 'root', True)
-        file_info = None
-        folder_info = None
+        file_info = []
+        folder_info = []
         for i in f_list:
             try:
                 if i['parents'][0]['isRoot'] is True:
@@ -538,34 +538,36 @@ def f_sync(service, local_path):
             id_list.clear()
         check_id_exist = False
         if check_file is True:
-            for file in file_info:
-                if file['id'] == i['id']:
-                    check_id_exist = True
-                    if file['modifiedDate'] > i['modifiedDate']:
-                        os.remove(os.path.join(i['absolute_path'], i['name']))
-                        save_location = drive_services.get_local_path(service, file['id'],
-                                                                      config_utils.get_folder_sync_path())
-                        downloader(service, '-d', file['id'], save_location, id_list)
-                        with ThreadPoolExecutor(5) as executor:
-                            executor.map(drive_services.download, id_list)
-                        id_list.clear()
-                    else:
-                        if file['modifiedDate'] == i['modifiedDate']:
-                            with open(common_utils.format_dict) as f:
-                                format_add = json.load(f)
-                            check_type = format_add.get(file.get('mimeType'))
-                            if check_type is not None:
-                                file_name = os.path.splitext(i['name'])[0]
+            if file_info is not None:
+                for file in file_info:
+                    if file['id'] == i['id']:
+                        check_id_exist = True
+                        if file['modifiedDate'] > i['modifiedDate']:
+                            os.remove(os.path.join(i['absolute_path'], i['name']))
+                            save_location = drive_services.get_local_path(service, file['id'],
+                                                                          config_utils.get_folder_sync_path())
+                            downloader(service, '-d', file['id'], save_location, id_list)
+                            with ThreadPoolExecutor(5) as executor:
+                                executor.map(drive_services.download, id_list)
+                            id_list.clear()
+                        else:
+                            if file['modifiedDate'] == i['modifiedDate']:
+                                with open(common_utils.format_dict) as f:
+                                    format_add = json.load(f)
+                                check_type = format_add.get(file.get('mimeType'))
+                                if check_type is not None:
+                                    file_name = os.path.splitext(i['name'])[0]
+                                else:
+                                    file_name = i['name']
+                                if file['name'] != file_name:
+                                    drive_services.update_file(service, file['id'],
+                                                               os.path.join(i['absolute_path'], i['name']),
+                                                               False)
                             else:
-                                file_name = i['name']
-                            if file['name'] != file_name:
                                 drive_services.update_file(service, file['id'],
                                                            os.path.join(i['absolute_path'], i['name']),
-                                                           False)
-                        else:
-                            drive_services.update_file(service, file['id'], os.path.join(i['absolute_path'], i['name']),
-                                                       True)
-                    break
+                                                           True)
+                        break
             if check_id_exist is False:
                 uploader(service, '-u', os.path.join(i['absolute_path'], i['name']), None, False, id_list)
                 with ThreadPoolExecutor(5) as executor:
@@ -581,9 +583,9 @@ def f_sync(service, local_path):
                         if i['modifiedDate'] > file['modifiedDate']:
                             last_edit = 'local'
                         else:
-                            last_edit = None
+                            last_edit = True
                     break
-            if last_edit is None:
+            if last_edit is True:
                 stat = os.stat(os.path.join(i['absolute_path'], i['name']))
                 if change_list is None:
                     change_list = drive_services.retrieve_all_changes(service, None)
@@ -604,21 +606,32 @@ def f_sync(service, local_path):
             elif last_edit == 'local':
                 uploader(service, '-u', os.path.join(i['absolute_path'], i['name']), None, True, id_list)
                 for file in id_list:
-                    drive_services.move_file_remote(service, i['id'], file['parent_id'])
+                    drive_services.move_file_remote(service, i['id'], file['parent_id'],
+                                                    os.path.join(os.path.join(i['absolute_path'], i['name'])))
                 id_list.clear()
-    clean_folder_empty(local_path, True)
+    clean_folder_empty(service, local_path, True)
     return True
 
 
-def clean_folder_empty(path, is_root=True):
+def clean_folder_empty(service, path, is_root=True):
     if os.path.isdir(path):
         i = 0
         for entry in os.scandir(path):
             i += 1
             if entry.is_dir():
-                clean_folder_empty(entry.path, False)
+                clean_folder_empty(service, entry.path, False)
         if i == 0 and is_root is False:
-            shutil.rmtree(path)
+            try:
+                f_id = os.getxattr(path, 'user.id')
+                f_id = f_id.decode()
+            except:
+                f_id = None
+            if f_id is not None:
+                try:
+                    service.files().delete(fileId=f_id).execute()
+                except:
+                    return
+                shutil.rmtree(path)
 
 
 def f_exclusive(path, options):
@@ -1229,7 +1242,7 @@ def get_tree_folder(service):
     # print("----")
     # print(files)
     # print(folders)
-    root = tree.newNode({"id": None, "name": "root" })
+    root = tree.newNode({"id": None, "name": "root"})
 
     for folder in folders:
         tmp_folder = {"id": folder["id"], "name": folder["name"], 'type': 'folder'}
@@ -1271,12 +1284,17 @@ def get_tree_folder(service):
 
 def check_remote_dir_files_sync(service, remote_folder_id, local_folder):
     remote_list = get_all_data(service, remote_folder_id, True)
-    remote_sub_direct_files_list = list(filter(lambda e: (not re.compile('folder', re.IGNORECASE).search(e.get('mimeType'))) and common_utils.is_parents_folder(remote_folder_id, e['parents']), remote_list))
-    remote_sub_direct_folders_list = list(filter(lambda e: (re.compile('folder', re.IGNORECASE).search(e.get('mimeType'))) and common_utils.is_parents_folder(remote_folder_id, e['parents']), remote_list))
+    remote_sub_direct_files_list = list(filter(lambda e: (not re.compile('folder', re.IGNORECASE).search(
+        e.get('mimeType'))) and common_utils.is_parents_folder(remote_folder_id, e['parents']), remote_list))
+    remote_sub_direct_folders_list = list(filter(
+        lambda e: (re.compile('folder', re.IGNORECASE).search(e.get('mimeType'))) and common_utils.is_parents_folder(
+            remote_folder_id, e['parents']), remote_list))
 
     local_files_list, local_folders_list = f_list_local(local_folder, True)
-    local_sub_direct_files_list = list(filter(lambda e: e['canonicalPath'] == os.path.join(local_folder, e['title']) , local_files_list))
-    local_sub_direct_folders_list = list(filter(lambda e: e['canonicalPath'] == os.path.join(local_folder, e['title']) , local_folders_list))
+    local_sub_direct_files_list = list(
+        filter(lambda e: e['canonicalPath'] == os.path.join(local_folder, e['title']), local_files_list))
+    local_sub_direct_folders_list = list(
+        filter(lambda e: e['canonicalPath'] == os.path.join(local_folder, e['title']), local_folders_list))
     # print(remote_sub_direct_folders_list)
     # print("--")
     # print(local_sub_direct_folders_list)
@@ -1303,7 +1321,8 @@ def check_remote_dir_files_sync(service, remote_folder_id, local_folder):
                 if check_remote_dir_files_sync(service, remote_folder['id'], local_folder['canonicalPath']):
                     count2 += 1
                     break
-    if count == max(len(remote_sub_direct_files_list), len(local_sub_direct_files_list)) and count2 == max(len(remote_sub_direct_folders_list), len(local_sub_direct_folders_list)):
+    if count == max(len(remote_sub_direct_files_list), len(local_sub_direct_files_list)) and count2 == max(
+            len(remote_sub_direct_folders_list), len(local_sub_direct_folders_list)):
         return True
     else:
         return False
@@ -1428,7 +1447,8 @@ def show_folder(service, folder_id):
 
 
 def show_folder_recusive(service, folder_id, folder_name, root_node):
-    sub_node = tree.get_direct_sub_node(root_node, {"id": folder_id, "name": folder_name} if folder_name else {"id": folder_id})
+    sub_node = tree.get_direct_sub_node(root_node,
+                                        {"id": folder_id, "name": folder_name} if folder_name else {"id": folder_id})
     if not sub_node:
         return
     print(folder_name)
@@ -1465,12 +1485,18 @@ def show_folder_by_path(service, folder_path):
             result = filter_remote_only(remote_files_list, local_files_list)
 
             for file in result:
-                table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'], common_utils.renderTypeShow(file['typeShow']),
-                                    common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])).strftime("%m/%d/%Y %H:%M"), file['mimeType'].split(".")[-1], common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                table.add_row([(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], file['id'],
+                               common_utils.renderTypeShow(file['typeShow']),
+                               common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])).strftime(
+                                   "%m/%d/%Y %H:%M"), file['mimeType'].split(".")[-1],
+                               common_utils.sizeof_fmt(common_utils.getFileSize(file))])
 
             for file in local_files_list:
-                table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'], common_utils.renderTypeShow(file['typeShow']),
-                                    datetime.fromtimestamp(file['modifiedDate']).strftime("%m/%d/%Y %H:%M"), file['type'] if 'type' in file else "file", common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                table.add_row([(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], file['id'],
+                               common_utils.renderTypeShow(file['typeShow']),
+                               datetime.fromtimestamp(file['modifiedDate']).strftime("%m/%d/%Y %H:%M"),
+                               file['type'] if 'type' in file else "file",
+                               common_utils.sizeof_fmt(common_utils.getFileSize(file))])
             is_print = True
         else:
             for file in local_files_list:
