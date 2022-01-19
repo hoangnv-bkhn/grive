@@ -71,7 +71,7 @@
 
             * -s [file_id] ([mail]) : Outputs the shareable link of the file
                     Multiple mails can be specified by putting mail one after another
-                    Don't specify [mail] to share/unshare with type every one
+                    Don't specify [mail] to share/unshare with share mode "every one"
                 -sr     : Share with 'reader' permission
                 -sw     : Share with 'writer' permission
                 -us     : Unshare file ( Specified [mail] = 'all' to unshare file completely)

@@ -37,8 +37,8 @@ def get_files_in_folder(service, folder_id):
     folders = []
     if folder_id in folder_tree:
         folders.append(folder_id)
-        for elem in folder_tree[folder_id]:
-            folders.append(elem)
+        common_utils.get_remote_folders_id_recursive(folder_tree, folder_id, folders)
+
     if len(folders) > 0:
         chunks = common_utils.chunks(folders, 100)
         for elem in chunks:
@@ -313,8 +313,8 @@ def get_local_path(service, instance_id, sync_dir):
     """
     try:
         instance = service.files().get(fileId=instance_id).execute()
+        # print(instance.get('labels').get('trashed'))
         instance_parent = instance.get('parents')[0]['id']
-        # print(instance_parent)
         rel_path = []
         all_folders = get_all_remote_folder(service)
         get_cloud_path(all_folders, instance_parent, rel_path)
@@ -339,8 +339,8 @@ def get_local_path(service, instance_id, sync_dir):
                 os.setxattr(sync_dir, 'user.id', str.encode(p['id']))
 
         # dir_exists(sync_dir)
-        # print(sync_dir)
-        return sync_dir
+        print(sync_dir)
+        return sync_dir, instance.get('labels').get('trashed')
     except:
         return None
 

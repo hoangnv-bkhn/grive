@@ -34,13 +34,24 @@ def cron_process(arg):
             #     command='/usr/bin/python3 %s -by_cron' % os.path.join(common_utils.dir_path, 'main.py'),
             #     comment='start Grive')
 
-            # when not run as drive_sync from command line
-            if __package__ is None:
-                gdrive_job = cron.new(command='/usr/bin/python3 %s -by_cron' % os.path.join(common_utils.dir_path, 'main.py'),
-                                      comment='start Grive')
-            # when run as package from command line
+            startup_on_boot = config_utils.get_auto_start_status()
+            if startup_on_boot:
+                # when not run as drive_sync from command line
+                if __package__ is None:
+                    gdrive_job = cron.new(
+                        command='@reboot /usr/bin/python3 %s -by_cron' % os.path.join(common_utils.dir_path, 'main.py'),
+                        comment='start Grive')
+                # when run as package from command line
+                else:
+                    gdrive_job = cron.new(command='@reboot grive -by_cron', comment='start Grive')
             else:
-                gdrive_job = cron.new(command='grive -by_cron', comment='start Grive')
+                # when not run as drive_sync from command line
+                if __package__ is None:
+                    gdrive_job = cron.new(command='/usr/bin/python3 %s -by_cron' % os.path.join(common_utils.dir_path, 'main.py'),
+                                          comment='start Grive')
+                # when run as package from command line
+                else:
+                    gdrive_job = cron.new(command='grive -by_cron', comment='start Grive')
 
             gdrive_job.minute.every(config_utils.get_sync_cycle())  # setting to run every n minutes
             cron.write()
@@ -79,56 +90,5 @@ def is_running(remove):  # remove tells if the function was called from stop
 
 
 # code to be launched by cron periodically
-def by_cron(service, file_id=None):
-
-    sync_dir = config_utils.get_folder_sync_path()
-    # stores if the file is being uploaded
-    uploading = {}
-
-    remote_files = drive_utils.get_all_data(service, "root", 1)
-    # print(remote_files[0]['modifiedDate'])
-
-    # datetime.timestamp(datetime.strptime(file['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ'))
-
-    subfolders, local_files = common_utils.run_fast_scandir(config_utils.get_folder_sync_path())
-
-    dicts = []
-    for file in remote_files:
-        res = {
-            'storageLocation': 'remote',
-            'id': file['id'],
-            'alternateLink': file['alternateLink'],
-            'title': file['title'],
-            'modifiedDate': common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])),
-            'parents': file['parents'],
-            'md5Checksum': file.get('md5Checksum')
-        }
-        dicts.append(res)
-    for file in dicts:
-        if file['title'] == 'data':
-            print(file['id'], file['title'], file.get('md5Checksum'), file['modifiedDate'])
-
-    dicts2 = []
-    # datetime.utcfromtimestamp(stats.st_mtime)
-    for file in local_files:
-        # print(file)
-        stats = os.stat(file)
-        # print(stats)
-        res = {
-            'storageLocation': 'local',
-            'title': common_utils.get_file_name(file),
-            'canonicalPath': file,
-            'modifiedDate': datetime.fromtimestamp(stats.st_mtime),
-            'accessedDate': datetime.fromtimestamp(stats.st_atime),
-            'changedDate': datetime.fromtimestamp(stats.st_ctime),
-            'md5Checksum': hashlib.md5(open(file, 'rb').read()).hexdigest(),
-            'excludeUpload': 'false'
-        }
-        dicts2.append(res)
-    for file in dicts2:
-        if file['title'] == 'data':
-            print('title', file['title'])
-            print('Checksum', file.get('md5Checksum'))
-            print("modified: ", file['modifiedDate'])
-            print("access: ", file['accessedDate'])
-            print("changed: ", file['changedDate'])
+def by_cron(service):
+    drive_utils.f_sync(service, None)

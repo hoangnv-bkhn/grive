@@ -13,8 +13,6 @@ import re
 from prettytable import PrettyTable
 from datetime import datetime
 
-from grive.config_utils import get_folder_sync_path
-
 try:
     # set directory for relativistic import
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -128,8 +126,8 @@ def downloader(service, option, instance_id, save_folder, id_list=None):
 
                 file_contained = drive_services.get_files_in_folder(service, instance_id)
                 for item in file_contained:
-                    location = drive_services.get_local_path(service, item.get('id'),
-                                                             config_utils.get_folder_sync_path())
+                    location, trashed = drive_services.get_local_path(service, item.get('id'),
+                                                                      config_utils.get_folder_sync_path())
                     downloader(service, option, item.get('id'), location, id_list)
 
         else:
@@ -646,66 +644,93 @@ def f_exclusive(path, options):
             os.setxattr(path, 'user.excludeUpload', str.encode('False'))
 
 
-def share_link(drive, option, file_id, mail):
-    # print(mail)
-    if is_valid_id(drive, file_id):
-        # create shared file
-        share_file = drive.CreateFile({'id': file_id})
-        # print(share_file)
+def sharer(service, option, instance_id, mail):
+    try:
+        permissions = service.permissions().list(fileId=instance_id).execute()
+        list_permissions = permissions.get('items', [])
+        print(list_permissions)
+        result = None
 
-        permissions = share_file.GetPermissions()
-        if mail == 'all':
-            for element in permissions:
-                if element['role'] != 'owner':
-                    share_file.DeletePermission(element['id'])
-        else:
-            for element in permissions:
-                if 'emailAddress' in element and element['emailAddress'].lower() == mail.lower():
-                    # print(element['emailAddress'], element['id'])
-                    share_file.DeletePermission(element['id'])
-                if element['id'] == 'anyone' and len(mail) == 0:
-                    share_file.DeletePermission(element['id'])
-
-        # check file's permission
+        unshared = False
+        already_have = False
+        role = None
         if common_utils.check_option(option, 'r', 3) or common_utils.check_option(option, 's', 2):
             role = "reader"
         elif common_utils.check_option(option, 'w', 3):
             role = "writer"
         elif common_utils.check_option(option, 'u', 3):
-            # share_file.FetchMetadata(fields='permissionIds')
-            # print(share_file['permissionIds'])
-            return
+            unshared = True
         else:
-            print("Permission is not a valid. Try again")
+            print("Permission is not valid. Try again")
             return
 
-        # permissions = share_file.GetPermissions()
-        # print(permissions)
+        for elem in list_permissions:
+            # if elem.get('emailAddress') == mail:
+            if 'emailAddress' in elem and elem.get('emailAddress').lower() == mail.lower():
+                already_have = True
+                if elem.get('role') != 'owner':
+                    if unshared is False:
+                        elem['role'] = role
+                        try:
+                            result = service.permissions().update(
+                                fileId=instance_id, permissionId=elem['id'], body=elem).execute()
+                        except:
+                            print('An error occurred !')
+                    else:
+                        try:
+                            service.permissions().delete(
+                                fileId=instance_id, permissionId=elem['id']).execute()
+                            print("Unshare successfully !")
+                        except:
+                            print('An error occurred !')
+                else:
+                    print('Failed! \nYou are the owner of this file (folder) !')
 
-        if len(mail) == 0:
-            share_file.InsertPermission({
-                'type': 'anyone',
-                'value': 'anyone',
-                'role': role
-            })
-        else:
-            try:
-                share_file.InsertPermission({
+            if elem['id'] == 'anyone' and len(mail) == 0 and unshared:
+                try:
+                    service.permissions().delete(
+                        fileId=instance_id, permissionId=elem['id']).execute()
+                    print("Unshare successfully !")
+                except:
+                    print('An error occurred !')
+
+        if unshared and mail == 'all':
+            for elem in list_permissions:
+                if elem.get('role') != 'owner':
+                    service.permissions().delete(
+                        fileId=instance_id, permissionId=elem['id']).execute()
+
+        if not already_have and not unshared:
+            if len(mail) == 0:
+                new_permission = {
+                    'type': 'anyone',
+                    'value': 'anyone',
+                    'role': role
+                }
+            else:
+                new_permission = {
                     'type': 'user',
                     'value': mail,
                     'role': role
-                })
+                }
+            try:
+                result = service.permissions().insert(
+                    fileId=instance_id, body=new_permission).execute()
             except:
-                print("%s is an invalid mail!" % mail)
-                return
+                print('An error occurred !')
 
-        share_file.FetchMetadata(fields='alternateLink, title')
+        if result is not None:
+            instance = service.files().get(fileId=instance_id,
+                                           fields='alternateLink').execute()
+            print("Share link copied to clipboard!")
+            pyperclip.copy(instance['alternateLink'])
+            mess = pyperclip.paste()
+            print(mess)
 
-        # print(share_file['alternateLink'])
-        print("Share link copied to clipboard!")
-        pyperclip.copy(share_file['alternateLink'])
-        mess = pyperclip.paste()
-        print(mess)
+    except:
+        print("%s is an invalid id!" % instance_id)
+
+    return None
 
 
 def f_remove(drive, mode, addrs):
@@ -882,6 +907,7 @@ def get_info(service, option, instance):
             }
             for elem in permissions:
                 result_remote.get('userPermission').append({
+                    "id": elem.get('id'),
                     "name": elem.get('name'),
                     "emailAddress": elem.get('emailAddress'),
                     "role": elem.get('role'),
@@ -910,92 +936,6 @@ def get_info(service, option, instance):
     # print(Path().resolve())
 
     return result_local, result_remote
-
-
-# def get_info(drive, option, instance):
-#     result_local = None
-#     result_remote = None
-#
-#     local_files, sub_folders = f_list_local(config_utils.get_folder_sync_path(), True)
-#
-#     path_err = False
-#     default_opt = False
-#
-#     instance_id = None
-#     if common_utils.check_option(option, 'i', 2):
-#         default_opt = True
-#         path = os.path.join(os.path.expanduser(Path().resolve()), instance)
-#         if os.path.exists(path) and path.startswith(config_utils.get_folder_sync_path() + os.sep):
-#             flag = False
-#             for file in local_files:
-#                 if path == file['canonicalPath']:
-#                     flag = True
-#                     instance_id = file['id']
-#                     if instance_id is None:
-#                         result_local = file
-#             if not flag:
-#                 for folder in sub_folders:
-#                     if path == folder['canonicalPath']:
-#                         instance_id = folder['id']
-#                         if instance_id is None:
-#                             result_local = folder
-#         else:
-#             path_err = True
-#             print('%s is invalid path !' % path)
-#
-#     elif common_utils.check_option(option, 'f', 3):
-#         instance_id = instance
-#     else:
-#         print(str(option) + " is an unrecognised argument. Please report if you know this is an error .\n\n")
-#
-#     # print(instance_id)
-#     if instance_id is not None and is_valid_id(drive, instance_id):
-#         remote_file = drive.CreateFile({'id': instance_id})
-#         # print(remote_file['title'])
-#         remote_file.FetchMetadata(fetch_all=True)
-#         permissions = remote_file.get('permissions')
-#         # print(remote_file)
-#         # print(permissions)
-#         result_remote = {
-#             'storageLocation': 'remote',
-#             'id': remote_file.get('id'),
-#             'title': remote_file.get('title'),
-#             'alternateLink': remote_file.get('alternateLink'),
-#             'parents': remote_file.get('parents'),
-#             'userPermission': [],
-#             'shared': remote_file.get('shared'),
-#             'ownedByMe': remote_file.get('ownedByMe'),
-#             'md5Checksum': remote_file.get('md5Checksum'),
-#             'fileSize': remote_file.get('fileSize') if remote_file.get('fileSize') else '',
-#             'isFolder': True if remote_file.get('mimeType') == 'application/vnd.google-apps.folder' else False
-#         }
-#         for elem in permissions:
-#             result_remote.get('userPermission').append({
-#                 "name": elem.get('name'),
-#                 "emailAddress": elem.get('emailAddress'),
-#                 "role": elem.get('role'),
-#             })
-#
-#         flag = False
-#         for file in local_files:
-#             if instance_id == file['id']:
-#                 flag = True
-#                 result_local = file
-#         if not flag:
-#             for folder in sub_folders:
-#                 if instance_id == folder['id']:
-#                     result_local = folder
-#     else:
-#         if not path_err and not default_opt:
-#             print('%s is invalid !' % instance)
-#
-#     print(result_local)
-#     print("=====")
-#     print(result_remote)
-#     # print("=====")
-#     # print(Path().resolve())
-#
-#     return result_local, result_remote
 
 
 def file_restore(drive, addr_list):
@@ -1229,7 +1169,7 @@ def get_tree_folder(service):
     # print("----")
     # print(files)
     # print(folders)
-    root = tree.newNode({"id": None, "name": "root" })
+    root = tree.newNode({"id": None, "name": "root"})
 
     for folder in folders:
         tmp_folder = {"id": folder["id"], "name": folder["name"], 'type': 'folder'}
@@ -1271,12 +1211,17 @@ def get_tree_folder(service):
 
 def check_remote_dir_files_sync(service, remote_folder_id, local_folder):
     remote_list = get_all_data(service, remote_folder_id, True)
-    remote_sub_direct_files_list = list(filter(lambda e: (not re.compile('folder', re.IGNORECASE).search(e.get('mimeType'))) and common_utils.is_parents_folder(remote_folder_id, e['parents']), remote_list))
-    remote_sub_direct_folders_list = list(filter(lambda e: (re.compile('folder', re.IGNORECASE).search(e.get('mimeType'))) and common_utils.is_parents_folder(remote_folder_id, e['parents']), remote_list))
+    remote_sub_direct_files_list = list(filter(lambda e: (not re.compile('folder', re.IGNORECASE).search(
+        e.get('mimeType'))) and common_utils.is_parents_folder(remote_folder_id, e['parents']), remote_list))
+    remote_sub_direct_folders_list = list(filter(
+        lambda e: (re.compile('folder', re.IGNORECASE).search(e.get('mimeType'))) and common_utils.is_parents_folder(
+            remote_folder_id, e['parents']), remote_list))
 
     local_files_list, local_folders_list = f_list_local(local_folder, True)
-    local_sub_direct_files_list = list(filter(lambda e: e['canonicalPath'] == os.path.join(local_folder, e['title']) , local_files_list))
-    local_sub_direct_folders_list = list(filter(lambda e: e['canonicalPath'] == os.path.join(local_folder, e['title']) , local_folders_list))
+    local_sub_direct_files_list = list(
+        filter(lambda e: e['canonicalPath'] == os.path.join(local_folder, e['title']), local_files_list))
+    local_sub_direct_folders_list = list(
+        filter(lambda e: e['canonicalPath'] == os.path.join(local_folder, e['title']), local_folders_list))
     # print(remote_sub_direct_folders_list)
     # print("--")
     # print(local_sub_direct_folders_list)
@@ -1303,7 +1248,8 @@ def check_remote_dir_files_sync(service, remote_folder_id, local_folder):
                 if check_remote_dir_files_sync(service, remote_folder['id'], local_folder['canonicalPath']):
                     count2 += 1
                     break
-    if count == max(len(remote_sub_direct_files_list), len(local_sub_direct_files_list)) and count2 == max(len(remote_sub_direct_folders_list), len(local_sub_direct_folders_list)):
+    if count == max(len(remote_sub_direct_files_list), len(local_sub_direct_files_list)) and count2 == max(
+            len(remote_sub_direct_folders_list), len(local_sub_direct_folders_list)):
         return True
     else:
         return False
@@ -1428,7 +1374,8 @@ def show_folder(service, folder_id):
 
 
 def show_folder_recusive(service, folder_id, folder_name, root_node):
-    sub_node = tree.get_direct_sub_node(root_node, {"id": folder_id, "name": folder_name} if folder_name else {"id": folder_id})
+    sub_node = tree.get_direct_sub_node(root_node,
+                                        {"id": folder_id, "name": folder_name} if folder_name else {"id": folder_id})
     if not sub_node:
         return
     print(folder_name)
@@ -1465,12 +1412,18 @@ def show_folder_by_path(service, folder_path):
             result = filter_remote_only(remote_files_list, local_files_list)
 
             for file in result:
-                table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'], common_utils.renderTypeShow(file['typeShow']),
-                                    common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])).strftime("%m/%d/%Y %H:%M"), file['mimeType'].split(".")[-1], common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                table.add_row([(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], file['id'],
+                               common_utils.renderTypeShow(file['typeShow']),
+                               common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])).strftime(
+                                   "%m/%d/%Y %H:%M"), file['mimeType'].split(".")[-1],
+                               common_utils.sizeof_fmt(common_utils.getFileSize(file))])
 
             for file in local_files_list:
-                table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else file['title'], file['id'], common_utils.renderTypeShow(file['typeShow']),
-                                    datetime.fromtimestamp(file['modifiedDate']).strftime("%m/%d/%Y %H:%M"), file['type'] if 'type' in file else "file", common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                table.add_row([(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], file['id'],
+                               common_utils.renderTypeShow(file['typeShow']),
+                               datetime.fromtimestamp(file['modifiedDate']).strftime("%m/%d/%Y %H:%M"),
+                               file['type'] if 'type' in file else "file",
+                               common_utils.sizeof_fmt(common_utils.getFileSize(file))])
             is_print = True
         else:
             for file in local_files_list:

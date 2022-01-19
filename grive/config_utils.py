@@ -8,8 +8,10 @@ try:
     # set directory for relative import
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     import common_utils
+    import jobs
 except ImportError:
     from . import common_utils
+    from . import jobs
 
 config = {}
 
@@ -35,6 +37,12 @@ def get_sync_cycle():
     config_file = read_config()
     cycle = config_file['Sync_Cycle']
     return cycle
+
+
+def get_auto_start_status():
+    config_file = read_config()
+    status = config_file['Auto_Start']
+    return status
 
 
 def get_network_limitation(mode):
@@ -102,10 +110,10 @@ def set_network_limitation(value):
     if len(value) == 2:
         try:
             rate = int(value[1])
-            if value[0].lower() == 'upload' and 0 < rate < 5120:
+            if value[0].lower() == 'upload' and 300 < rate < 5120:
                 config['Network_Speed_Limitation']['Upload_Rate'] = rate
                 return True
-            elif value[0].lower() == 'download' and 0 < rate < 5120:
+            elif value[0].lower() == 'download' and 300 < rate < 5120:
                 config['Network_Speed_Limitation']['Download_Rate'] = rate
                 return True
             else:
@@ -167,6 +175,8 @@ def write_config():
 
     config = read_config()
 
+    status_auto_start_before = config['Auto_Start']
+
     print("\n\t\t\tGRIVE")
     print("\n Please look below at the options which you wish to update: ")
     print(" (Enter the number followed by value, eg. \"1 input\")")
@@ -222,6 +232,9 @@ def write_config():
             continue
 
     try:
+        if status_auto_start_before != config['Auto_Start'] and jobs.is_running(False):
+            jobs.cron_process("start")
+
         with open(common_utils.config_file, "w") as output:
             json.dump(config, output)
     except IOError:

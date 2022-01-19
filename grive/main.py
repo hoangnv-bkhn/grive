@@ -184,8 +184,9 @@ def main():
 
                 elif arguments[0] == "-d" or arguments[0] == "-do":
                     for argument in arguments[arg_index: len(arguments)]:
-                        save_location = drive_services.get_local_path(service,
-                                                                      argument, config_utils.get_folder_sync_path())
+                        save_location, trashed = drive_services.get_local_path(service,
+                                                                               argument,
+                                                                               config_utils.get_folder_sync_path())
                         if save_location is not None:
                             drive_utils.downloader(service, arguments[0], argument, save_location, id_list)
                         else:
@@ -205,11 +206,11 @@ def main():
             if is_matching(arg_index, len(arguments)):
                 # share to anyone
                 if len(arguments) == 2:
-                    drive_utils.share_link(drive, arguments[arg_index - 1], arguments[arg_index], "")
+                    drive_utils.sharer(service, arguments[arg_index - 1], arguments[arg_index], "")
                 else:
                     # share for specified users
                     for argument in arguments[arg_index + 1: len(arguments)]:
-                        drive_utils.share_link(drive, arguments[0], arguments[1], argument)
+                        drive_utils.sharer(service, arguments[0], arguments[1], argument)
 
                 arg_index = len(arguments)  # all arguments used up by share
 
@@ -256,14 +257,28 @@ def main():
                     if owned_by_me:
                         x.add_row(["Owner", 'Me', '\n'])
                     for i, elem in enumerate(info_remote.get('userPermission')):
-                        if i == 0:
-                            x.add_row(["Permission", elem.get('name').ljust(30) + elem.get('role').ljust(15) + elem.get('emailAddress'), '\n'])
+                        if elem.get('name') is None:
+                            if elem.get('id') == 'anyone':
+                                user_name = "Everyone"
+                            else:
+                                user_name = "Unavailable"
                         else:
-                            x.add_row(["", elem.get('name').ljust(30) + elem.get('role').ljust(15) + elem.get('emailAddress'), '\n'])
+                            user_name = elem.get('name')
+
+                        if elem.get('emailAddress') is None:
+                            user_mail = ''
+                        else:
+                            user_mail = elem.get('emailAddress')
+
+                        if i == 0:
+                            x.add_row(
+                                ["Permission", user_name.ljust(30) + elem.get('role').ljust(15) + user_mail, '\n'])
+                        else:
+                            x.add_row(["", user_name.ljust(30) + elem.get('role').ljust(15) + user_mail, '\n'])
                     if shared:
                         x.add_row(["Share Link", info_remote.get('alternateLink'), '\n'])
                     x.align = "l"
-                    # x.set_style(prettytable.PLAIN_COLUMNS)
+                    # x.set_style(prettytable.MSWORD_FRIENDLY)
                     x.header = False
                     x.border = False
                     x.left_padding_width = 5
@@ -292,7 +307,7 @@ def main():
 
                 elif arguments[arg_index] == "-lpr":
                     arg_index += 1
-                    drive_utils.show_folder_recusive_by_path(service,  arguments[len(arguments) - 1], root)
+                    drive_utils.show_folder_recusive_by_path(service, arguments[len(arguments) - 1], root)
 
                 # elif arguments[arg_index] == "-lf":
                 #     arg_index += 1
@@ -373,7 +388,8 @@ def main():
                 table.add_row([(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], file['id'],
                                common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])).strftime(
                                    "%m/%d/%Y %H:%M"),
-                               file['mimeType'].split(".")[-1], common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                               file['mimeType'].split(".")[-1],
+                               common_utils.sizeof_fmt(common_utils.getFileSize(file))])
             table.align = 'l'
             print(table)
         elif arguments[arg_index] == "-by_cron":
@@ -393,8 +409,9 @@ def main():
                 arg_index = len(arguments)
 
         else:
-            print(str(arguments[arg_index]) + " is an unrecognised argument. Please report if you know this is an error"
-                                              ".\n\n")
+            print(str(arguments[arg_index]) +
+                  " is an unrecognised argument. Please report if you know this is an error !")
+            return
 
         arg_index += 1
 

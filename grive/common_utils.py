@@ -254,6 +254,7 @@ def is_parents_folder(id_parents, parents):
     
     return False
 
+
 def print_table_remote(arr_files):
     table = PrettyTable()
     table.field_names = ['Name', 'Id', 'Status', 'Date Modified', 'Type' , 'Size']
@@ -300,6 +301,12 @@ def get_list_local_id(folder):
             except:
                 continue
     return ids
+
+
+def get_remote_folders_id_recursive(folder_tree, folder_id, list_ids):
+    for elem in folder_tree[folder_id]:
+        list_ids.append(elem)
+        get_remote_folders_id_recursive(folder_tree, elem, list_ids)
 
 
 def utc2local(utc):
