@@ -11,7 +11,6 @@ from datetime import datetime
 from pathlib import Path
 
 import prettytable
-from threading import local
 from googleapiclient.discovery import build
 from pydrive.drive import GoogleDrive
 from prettytable import PrettyTable
@@ -23,7 +22,7 @@ require_auth = [
     "-d", "-do", "-df", "-dfo",
     "-i", "-if",
     "-s", "-sr", "-sw", "-us",  # share file
-    "-u", "-uf", "-uo",
+    "-u", "-uo", "-uf", "-ufo"
     "-da", "-dl", "-dr",
     "-ls_files", "ls_files", "-laf",
     "-l", "-lr", "-lp", "-lpr", "-lf", "-lfr",
@@ -33,7 +32,6 @@ require_auth = [
     "-sy",
     "-usage", "usage",
     "-q", "-qc",
-    "-xs"
 ]
 
 
@@ -124,7 +122,7 @@ def main():
         elif arguments[arg_index] == "-c":
             config_utils.write_config()
 
-        elif arguments[arg_index] == '-xs':
+        elif arguments[arg_index] == '-z':
             restore_default.restore_default()
 
         elif arguments[arg_index] == "-u" or arguments[arg_index] == "-uo" \
@@ -197,8 +195,6 @@ def main():
                         executor.map(drive_services.download, id_list)
 
                 arg_index = len(arguments)  # all arguments used up by download
-                # if not drive_utils.is_valid_id(drive, arguments[len(arguments) - 1]) and len(arguments) > 2:
-            # print('\n')
 
         elif arguments[arg_index] == "-s" or arguments[arg_index] == "-sr" \
                 or arguments[arg_index] == "-sw" or arguments[arg_index] == "-us":

@@ -27,49 +27,6 @@ except ImportError:
     from . import tree
 
 
-# def f_all(drive, fold_id, file_list, download, sync_folder, option, folder_list):
-#     """Recursively download or just list files in folder
-#
-#         :param drive: Google Drive instance
-#         :param fold_id: id of folder to search
-#         :param file_list: initial list to store list of file when search
-#         :param download: True if downloads, False if just recursively list file
-#         :param sync_folder: folder to store when download
-#         :param option: option download (overwrite or not)
-#         :param folder_list: initial list to store list of folder when search
-#
-#         :returns: List of file store in file_list param
-#     """
-#
-#     q_string = "'%s' in parents and trashed=false" % fold_id
-#     for f in drive.ListFile({'q': q_string}).GetList():
-#         if f['mimeType'] == 'application/vnd.google-apps.folder':
-#             # print(f['title'])
-#             if download:  # if we are to download the files
-#                 save_location = os.path.join(sync_folder, f['title'])
-#                 if os.path.exists(save_location):
-#                     save_location = common_utils.get_dup_name(sync_folder, os.path.basename(sync_folder))
-#
-#                 common_utils.dir_exists(save_location)
-#                 os.setxattr(save_location, 'user.id', str.encode(f['id']))
-#
-#                 stats = os.stat(save_location)
-#                 os.utime(save_location, (stats.st_atime, common_utils.utc2local(
-#                     datetime.strptime(f['modifiedDate'], '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
-#
-#                 f_all(drive, f['id'], None, True, save_location, option, folder_list)
-#
-#             else:  # we want to just list the files
-#                 # print(f['title'])
-#                 folder_list.append(f)
-#                 f_all(drive, f['id'], file_list, False, None, None, folder_list)
-#         else:
-#             if download:
-#                 downloader(drive, option, f['id'], sync_folder)
-#             else:
-#                 file_list.append(f)
-
-
 def downloader(service, option, instance_id, save_folder, id_list=None):
     if id_list is None:
         id_list = []
