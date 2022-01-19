@@ -1162,7 +1162,7 @@ def get_tree_folder(service):
     # print("----")
     # print(files)
     # print(folders)
-    root = tree.newNode({"id": None, "name": "Grive", "canonicalPath": "/home/tadanghuy/Documents/sync_grive" })
+    root = tree.newNode({"id": None, "name": "Grive", "canonicalPath": config_utils.get_folder_sync_path()})
 
     for folder in folders:
         tmp_folder = {"id": folder["id"], "name": folder["name"], 'type': 'folder',
@@ -1263,7 +1263,8 @@ def compare_and_change_type_show(service, remote_files_list, local_files_list):
                     else:
                         if remote_file['fileSize'] == local_file['fileSize']:
                             remote_file['typeShow'] = "dongbo"
-                        elif remote_file['modifiedDate'] == datetime.utcfromtimestamp(local_file['modifiedDate']).timestamp():
+                        elif remote_file['modifiedDate'] == datetime.utcfromtimestamp(
+                                local_file['modifiedDate']).timestamp():
                             remote_file['typeShow'] = "dongbo"
                         else:
                             remote_file['typeShow'] = "notdongbo"
@@ -1338,18 +1339,21 @@ def show_folder(service, folder_id):
 
             result = filter_local_only(local_files_list, remote_files_list)
             for file in result:
-                table.add_row([(file['title'][:37] + "...") if len(file["title"]) > 37 else "{:<40}".format(file['title']),
-                               file['id'] if file['id'] else '', common_utils.renderTypeShow(file['typeShow']),
-                               datetime.fromtimestamp(file['modifiedDate']).strftime("%m/%d/%Y %H:%M"), file['type'],
-                               common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                table.add_row(
+                    [(file['title'][:37] + "...") if len(file["title"]) > 37 else "{:<40}".format(file['title']),
+                     file['id'] if file['id'] else '', common_utils.renderTypeShow(file['typeShow']),
+                     datetime.fromtimestamp(file['modifiedDate']).strftime("%m/%d/%Y %H:%M"), file['type'],
+                     common_utils.sizeof_fmt(common_utils.getFileSize(file))])
 
         else:
             for file in remote_files_list:
                 file['typeShow'] = 'dammay'
 
         for file in remote_files_list:
-            table.add_row([(file['title'][:37] + "...") if len(file["title"]) > 37 else "{:<40}".format(file['title']), file['id'],
-                           common_utils.renderTypeShow(file['typeShow']) + " " + (u'\U0001F464' if file['shared'] else ""),
+            table.add_row([(file['title'][:37] + "...") if len(file["title"]) > 37 else "{:<40}".format(file['title']),
+                           file['id'],
+                           common_utils.renderTypeShow(file['typeShow']) + " " + (
+                               u'\U0001F464' if file['shared'] else ""),
                            common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])).strftime(
                                "%m/%d/%Y %H:%M"), file['mimeType'].split(".")[-1],
                            common_utils.sizeof_fmt(common_utils.getFileSize(file))])
@@ -1361,10 +1365,11 @@ def show_folder(service, folder_id):
 
             for file in local_files_list:
                 file['typeShow'] = 'maytinh'
-                table.add_row([(file['title'][:37] + "...") if len(file["title"]) > 37 else "{:<40}".format(file['title']),
-                               file['id'] if file['id'] else '',common_utils.renderTypeShow(file['typeShow']),
-                               datetime.fromtimestamp(file['modifiedDate']).strftime("%m/%d/%Y %H:%M"), file['type'],
-                               common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                table.add_row(
+                    [(file['title'][:37] + "...") if len(file["title"]) > 37 else "{:<40}".format(file['title']),
+                     file['id'] if file['id'] else '', common_utils.renderTypeShow(file['typeShow']),
+                     datetime.fromtimestamp(file['modifiedDate']).strftime("%m/%d/%Y %H:%M"), file['type'],
+                     common_utils.sizeof_fmt(common_utils.getFileSize(file))])
             is_print = True
     if is_print:
         table.align = "l"
@@ -1372,11 +1377,14 @@ def show_folder(service, folder_id):
 
 
 def show_folder_recusive(service, folder_id, folder_name, root_node):
-    self_key, sub_node = tree.get_direct_sub_node(root_node, {"id": folder_id, "name": folder_name} if folder_name else {"id": folder_id})
+    self_key, sub_node = tree.get_direct_sub_node(root_node,
+                                                  {"id": folder_id, "name": folder_name} if folder_name else {
+                                                      "id": folder_id})
     if not sub_node:
         return
     # print(folder_name)
-    print("\033[96m {}\033[00m" .format(self_key.get('canonicalPath').replace('/home/tadanghuy/Documents/sync_grive', 'Grive')))
+    print("\033[96m {}\033[00m".format(
+        self_key.get('canonicalPath').replace(config_utils.get_folder_sync_path(), 'Grive')))
 
     if (folder_id == None and folder_name == 'Grive'):
         show_folder(service, 'root')
@@ -1402,7 +1410,7 @@ def show_folder_by_path(service, folder_path):
         else:
             root_files_list, root_folders_list = f_list_local(config_utils.get_folder_sync_path(), True)
             x = list(filter(lambda e: e['canonicalPath'] == folder_path, root_folders_list))
-        if len(x) > 0: # cai if nay kha vo nghia
+        if len(x) > 0:  # cai if nay kha vo nghia
             remote_folder = x[0]
             remote_files_list = get_all_data(service, remote_folder['id'], False)
 
@@ -1411,12 +1419,20 @@ def show_folder_by_path(service, folder_path):
             result = filter_remote_only(remote_files_list, local_files_list)
 
             for file in result:
-                table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else "{:<40}".format(file['title']), file['id'], common_utils.renderTypeShow(file['typeShow']) + " " + (u'\U0001F464' if file['shared'] else ""),
-                                    common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])).strftime("%m/%d/%Y %H:%M"), file['mimeType'].split(".")[-1], common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                table.add_row(
+                    [(file['title'][:37] + "...") if len(file["title"]) > 37 else "{:<40}".format(file['title']),
+                     file['id'],
+                     common_utils.renderTypeShow(file['typeShow']) + " " + (u'\U0001F464' if file['shared'] else ""),
+                     common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])).strftime("%m/%d/%Y %H:%M"),
+                     file['mimeType'].split(".")[-1], common_utils.sizeof_fmt(common_utils.getFileSize(file))])
 
             for file in local_files_list:
-                table.add_row([(file['title'][:37]+ "...")if len(file["title"])> 37 else "{:<40}".format(file['title']), file['id'], common_utils.renderTypeShow(file['typeShow']),
-                                    datetime.fromtimestamp(file['modifiedDate']).strftime("%m/%d/%Y %H:%M"), file['type'] if 'type' in file else "file", common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                table.add_row(
+                    [(file['title'][:37] + "...") if len(file["title"]) > 37 else "{:<40}".format(file['title']),
+                     file['id'], common_utils.renderTypeShow(file['typeShow']),
+                     datetime.fromtimestamp(file['modifiedDate']).strftime("%m/%d/%Y %H:%M"),
+                     file['type'] if 'type' in file else "file",
+                     common_utils.sizeof_fmt(common_utils.getFileSize(file))])
             is_print = True
         else:
             for file in local_files_list:
@@ -1443,7 +1459,7 @@ def show_folder_recusive_by_path(service, path, root_node):
         if node == None:
             print('Path %s is invalid !' % (path))
         elif node.key['type'] == 'file':
-            print('%s is path of file ,not path of folder!' %(path))
+            print('%s is path of file ,not path of folder!' % (path))
         else:
             folder_id = node.key['id']
             folder_name = node.key['name']
