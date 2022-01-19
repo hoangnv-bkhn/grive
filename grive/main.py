@@ -251,6 +251,10 @@ def main():
                         else:
                             if info_remote.get('fileSize') is not None and info_remote.get('fileSize') == info_local.get('fileSize'):
                                 status = "dongbo"
+                            elif info_remote['modifiedDate'] == datetime.utcfromtimestamp(info_local['modifiedDate']).timestamp():
+                                info_remote['typeShow'] = "dongbo"
+                            else:
+                                info_remote['typeShow'] = "notdongbo"
                 if info_remote is not None and len(info_remote) > 0:
                     print()
                     # print('General\n'.rjust(60))
