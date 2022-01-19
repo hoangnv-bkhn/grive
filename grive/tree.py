@@ -84,12 +84,12 @@ def get_direct_sub_node(root, index):
             q.pop(0)
             if index['id']:  # if id != None
                 if index['id'] == p.key['id']:
-                    return p.child
-            else:
+                    return p.key, p.child
+            else: 
                 tmp_key = {"id": p.key["id"], "name": p.key["name"]}
                 if tmp_key == index:
-                    return p.child
-
+                    return p.key, p.child
+   
             # Enqueue all children of the dequeued item
             for i in range(len(p.child)):
                 q.append(p.child[i])
