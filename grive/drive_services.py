@@ -169,7 +169,7 @@ def upload(instance):
         check_type = format_add.get(instance.get('mimeType'))
         upload_rate = config_utils.get_network_limitation('upload')
         if not upload_rate:
-            media_body = MediaFileUpload(path, chunksize=275000, resumable=True)
+            media_body = MediaFileUpload(path, chunksize=100 * 1024 * 1024, resumable=True)
         else:
             media_body = MediaFileUpload(path, chunksize=upload_rate * 1024, resumable=True)
         if check_type is not None:
@@ -258,17 +258,36 @@ def update_file(service, file_id, path, option):
         return None
 
 
-def move_file_remote(service, file_id, parent_id):
+def move_file_remote(service, file_id, parent_id, path):
     # Retrieve the existing parents to remove
+    try:
+        f_exclusive = os.getxattr(path, 'user.excludeUpload')
+        f_exclusive = f_exclusive.decode()
+    except:
+        f_exclusive = None
+    if f_exclusive is not None:
+        if f_exclusive == 'True':
+            return True
     file = service.files().get(fileId=file_id, fields='parents').execute()
     previous_parents = ",".join([parent["id"] for parent in file.get('parents')])
     # Move the file to the new folder
     file = service.files().update(fileId=file_id,
                                   addParents=parent_id,
                                   removeParents=previous_parents,
-                                  fields='id, parents').execute()
-    print("Moved %s complete." % file_id)
+                                  fields='id, parents, modifiedDate').execute()
+    stats = os.stat(path)
+    os.utime(path, (stats.st_atime, common_utils.utc2local(
+        datetime.strptime(file.get('modifiedDate'), '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
+    print("Moved %s complete." % common_utils.get_file_name(path))
     return True
+
+
+def filter_trash(service, instance_id, sync_dir):
+    path, trashed = get_local_path(service, instance_id, sync_dir)
+    if trashed is False:
+        return path
+    else:
+        return None
 
 
 def get_folder_tree(service):
@@ -318,7 +337,6 @@ def get_local_path(service, instance_id, sync_dir):
         rel_path = []
         all_folders = get_all_remote_folder(service)
         get_cloud_path(all_folders, instance_parent, rel_path)
-        # print(rel_path)
 
         for p in rel_path:
             check = False

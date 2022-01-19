@@ -30,7 +30,7 @@ require_auth = [
     "-ls_trash", "ls_trash", "-lt",
     "-ls_folder",
     "-restore", "restore",
-    "-z",
+    "-sy",
     "-usage", "usage",
     "-q", "-qc",
     "-xs"
@@ -152,7 +152,7 @@ def main():
         elif arguments[arg_index] == "-q" or arguments[arg_index] == '-qc':
             arg_index += 1
             mode = True
-            if arguments[arg_index] == "-q":
+            if arguments[0] == "-qc":
                 mode = False
             if is_matching(arg_index, len(arguments)):
                 drive_utils.f_exclusive(arguments[arg_index], mode)
