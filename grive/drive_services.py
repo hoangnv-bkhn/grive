@@ -7,6 +7,7 @@ import timeit
 from datetime import datetime
 import json
 from console_progressbar import ProgressBar
+from tqdm import *
 
 from googleapiclient.http import MediaIoBaseDownload
 from googleapiclient.http import MediaFileUpload
@@ -101,6 +102,8 @@ def get_raw_data(service, instance, recursive):
 def download(instance):
     try:
         # print("Thread : {}".format(threading.current_thread().name))
+        thread_index = int(threading.current_thread().name[-1])
+        # print(thread_index)
         creds = auth_utils.get_user_credential()
         service = build('drive', 'v2', credentials=creds)
 
@@ -112,26 +115,32 @@ def download(instance):
 
         fd = io.BytesIO()
         download_rate = config_utils.get_network_limitation('download')
+        # pb = ProgressBar(total=100, prefix='Downloading ' + instance.get('title') ,decimals=0, length=50, fill='X',
+        #                      zfill='-')
+        pbar= tqdm(desc='Downloading ' + instance.get('title'),total=100, position= thread_index + 1, ncols = 100)
         if not download_rate:
             downloader = MediaIoBaseDownload(fd=fd, request=request)
             done = False
-            pb = ProgressBar(total=100, prefix='Downloading ' + instance.get('title'), decimals=3, length=50, fill='X',
-                             zfill='-')
+            pre = 0
             while done is False:
                 status, done = downloader.next_chunk()
-                # print("Download %s %d%%." % (instance.get('title'), int(status.progress() * 100)))
-                pb.print_progress_bar(int(status.progress() * 100))
+                # pb.print_progress_bar(int(status.progress() * 100))
+                pbar.update(int(status.progress() * 100) - pre)
+                pre = int(status.progress() * 100)
         else:
             downloader = MediaIoBaseDownload(fd=fd, request=request, chunksize=download_rate * 1024)
             done = False
+            pre = 0
             while done is False:
                 start = timeit.default_timer()
                 status, done = downloader.next_chunk()
-                print("Download %s %d%%." % (instance.get('title'), int(status.progress() * 100)))
+                # pb.print_progress_bar(int(status.progress() * 100))
+                pbar.update(int(status.progress() * 100) - pre)
                 stop = timeit.default_timer()
                 processing_time = stop - start
                 if processing_time < 0.95:
                     time.sleep(0.95 - processing_time)
+                pre = int(status.progress() * 100)
 
         fd.seek(0)
         with open(instance.get('saveLocation'), 'wb') as f:
@@ -169,7 +178,8 @@ def upload(instance):
         check_type = format_add.get(instance.get('mimeType'))
         upload_rate = config_utils.get_network_limitation('upload')
         if not upload_rate:
-            media_body = MediaFileUpload(path, chunksize=275000, resumable=True)
+            media_body = MediaFileUpload(path, chunksize=100 * 1024 * 1024, resumable=True)
+            # media_body = MediaFileUpload(path,resumable=True)
         else:
             media_body = MediaFileUpload(path, chunksize=upload_rate * 1024, resumable=True)
         if check_type is not None:
@@ -186,11 +196,12 @@ def upload(instance):
             body['parents'] = [{'id': parent_id}]
         file = service.files().insert(body=body, media_body=media_body, fields='id')
         response = None
+        pb = ProgressBar(total=100, prefix='Uploading ' + filename, decimals=0, length=50)
         while response is None:
             status, response = file.next_chunk()
             if status:
                 start = timeit.default_timer()
-                print("Upload %s file %d%% complete." % (filename, int(status.progress() * 100)))
+                pb.print_progress_bar(int(status.progress() * 100))
                 stop = timeit.default_timer()
                 processing_time = stop - start
                 if processing_time < 0.95:
@@ -201,7 +212,7 @@ def upload(instance):
             stats = os.stat(path)
             os.utime(path, (stats.st_atime, common_utils.utc2local(
                 datetime.strptime(file.get('modifiedDate'), '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
-        print("Upload %s file complete." % filename)
+        pb.print_progress_bar(int(100))
         return True
     except:
         return False
