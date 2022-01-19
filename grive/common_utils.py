@@ -29,7 +29,7 @@ except settings.InvalidConfigError or OSError:
     client_secrets = resource_filename(__name__, "credential.json")
     mime_dict = resource_filename(__name__, "config_dicts/mime_dict.json")
     format_dict = resource_filename(__name__, "config_dicts/formats.json")
-    version_info_file = os.path.join(dir_path, "docs/version_info.txt")
+    version_info_file = resource_filename(__name__, "docs/version_info.txt")
     help_file = resource_filename(__name__, "docs/readme.txt")
     config_folder = resource_filename(__name__, "config_dicts")
 

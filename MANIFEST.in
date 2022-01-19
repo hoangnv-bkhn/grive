@@ -1,0 +1,6 @@
+include README.md
+include LICENSE
+include grive/credential.json
+include grive/docs/*.txt
+include grive/config_dicts/*.json
+include grive/
