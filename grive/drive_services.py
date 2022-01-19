@@ -260,6 +260,14 @@ def update_file(service, file_id, path, option):
 
 def move_file_remote(service, file_id, parent_id, path):
     # Retrieve the existing parents to remove
+    try:
+        f_exclusive = os.getxattr(path, 'user.excludeUpload')
+        f_exclusive = f_exclusive.decode()
+    except:
+        f_exclusive = None
+    if f_exclusive is not None:
+        if f_exclusive == 'True':
+            return True
     file = service.files().get(fileId=file_id, fields='parents').execute()
     previous_parents = ",".join([parent["id"] for parent in file.get('parents')])
     # Move the file to the new folder
@@ -321,7 +329,6 @@ def get_local_path(service, instance_id, sync_dir):
         rel_path = []
         all_folders = get_all_remote_folder(service)
         get_cloud_path(all_folders, instance_parent, rel_path)
-        # print(rel_path)
 
         for p in rel_path:
             check = False

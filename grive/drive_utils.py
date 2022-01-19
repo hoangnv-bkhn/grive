@@ -609,6 +609,11 @@ def f_sync(service, local_path):
                     drive_services.move_file_remote(service, i['id'], file['parent_id'],
                                                     os.path.join(os.path.join(i['absolute_path'], i['name'])))
                 id_list.clear()
+            if last_edit is None:
+                uploader(service, '-u', os.path.join(i['absolute_path'], i['name']), None, False, id_list)
+                with ThreadPoolExecutor(5) as executor:
+                    executor.map(drive_services.upload, id_list)
+                id_list.clear()
     clean_folder_empty(service, local_path, True)
     return True
 
@@ -627,6 +632,11 @@ def clean_folder_empty(service, path, is_root=True):
             except:
                 f_id = None
             if f_id is not None:
+                """
+                Need to check if the folder on the remote is empty.
+                ERROR:
+                When you move the folder on the remote and then run the sync, the folder on the remote will be deleted.
+                """
                 try:
                     service.files().delete(fileId=f_id).execute()
                 except:
@@ -642,10 +652,11 @@ def f_exclusive(path, options):
         # Traversing inside files/folders
         if os.path.isdir(path):
             os.setxattr(path, 'user.excludeUpload', str.encode('True'))
-            for item in os.listdir(path):
-                f_exclusive(item)
+            for item in os.scandir(path):
+                f_exclusive(item.path, options)
         else:
             os.setxattr(path, 'user.excludeUpload', str.encode('True'))
+        print("Exclude Upload Success")
     else:
         path = os.path.join(os.path.expanduser(Path().resolve()), path)
         if path.startswith(config_utils.get_folder_sync_path() + os.sep) is False:
@@ -653,10 +664,11 @@ def f_exclusive(path, options):
         # Traversing inside files/folders
         if os.path.isdir(path):
             os.setxattr(path, 'user.excludeUpload', str.encode('False'))
-            for item in os.listdir(path):
-                f_exclusive(item)
+            for item in os.scandir(path):
+                f_exclusive(item.path, options)
         else:
             os.setxattr(path, 'user.excludeUpload', str.encode('False'))
+        print("UnExclude Upload Success")
 
 
 def share_link(drive, option, file_id, mail):
@@ -721,32 +733,31 @@ def share_link(drive, option, file_id, mail):
         print(mess)
 
 
-def f_remove(drive, mode, addrs):
-    # print(addrs)
+def f_remove(drive, mode, paths):
     if mode == "local":
         sync_dir = config_utils.get_folder_sync_path()
         # Appending file/folder name to download directory
-        for addr in addrs:
-            addr = os.path.join(os.path.expanduser(Path().resolve()), addr)
-            if addr.startswith(config_utils.get_folder_sync_path() + os.sep) is False:
+        for path in paths:
+            path = os.path.join(os.path.expanduser(Path().resolve()), path)
+            if path.startswith(config_utils.get_folder_sync_path() + os.sep) is False:
                 return False
-            if not os.path.exists(addr):
-                print("%s doesn't exist in %s" % (addr, sync_dir))
+            if not os.path.exists(path):
+                print("%s doesn't exist in %s" % (path, sync_dir))
             else:
                 # use recursive removal if directory
-                if os.path.isdir(addr):
-                    shutil.rmtree(addr)
+                if os.path.isdir(path):
+                    shutil.rmtree(path)
                 else:
-                    os.remove(addr)
-                print("%s removed from %s" % (addr, sync_dir))
+                    os.remove(path)
+                print("%s removed from %s" % (path, sync_dir))
         return True
 
     elif mode == "remote":
-        for addr in addrs:
+        for id in paths:
             # check if file_id valid
-            if is_valid_id(drive, addr):
+            if is_valid_id(drive, id):
                 # file to be removed
-                r_file = drive.CreateFile({'id': addr})
+                r_file = drive.CreateFile({'id': id})
                 f_name = r_file['title']
                 # delete permanently if in trash
                 if is_trash(drive, r_file['id']):
@@ -760,9 +771,9 @@ def f_remove(drive, mode, addrs):
 
     elif mode == "all":
         sync_dir = config_utils.get_folder_sync_path()
-        for addr in addrs:
+        for path in paths:
             check_path = True
-            f_path = os.path.join(os.path.expanduser(Path().resolve()), addr)
+            f_path = os.path.join(os.path.expanduser(Path().resolve()), path)
             if f_path.startswith(config_utils.get_folder_sync_path() + os.sep) is False:
                 check_path = False
             if os.path.exists(f_path) and check_path is True:
@@ -788,15 +799,15 @@ def f_remove(drive, mode, addrs):
                     shutil.rmtree(f_path)
                 else:
                     os.remove(f_path)
-                print("%s removed from %s" % (addr, sync_dir))
+                print("%s removed from %s" % (f_path, sync_dir))
                 return True
             # check if file_id valid
             list_local, local_folders = f_list_local(sync_dir, True)
             for i in local_folders:
                 list_local.append(i)
-            if is_valid_id(drive, addr):
+            if is_valid_id(drive, path):
                 # file to be removed
-                r_file = drive.CreateFile({'id': addr})
+                r_file = drive.CreateFile({'id': path})
                 f_name = r_file['title']
                 # delete permanently if in trash
                 if is_trash(drive, r_file['id']):
@@ -807,14 +818,14 @@ def f_remove(drive, mode, addrs):
                     r_file.Trash()
                     print("%s moved to GDrive trash. List files in trash by -lt parameter" % f_name)
             for x in list_local:
-                if x['id'] == addr:
-                    f_addr = x['canonicalPath']
+                if x['id'] == path:
+                    f_path = x['canonicalPath']
                     # use recursive removal if directory
-                    if os.path.isdir(f_addr):
-                        shutil.rmtree(f_addr)
+                    if os.path.isdir(f_path):
+                        shutil.rmtree(f_path)
                     else:
-                        os.remove(f_addr)
-                        print("%s removed from %s" % (f_addr, sync_dir))
+                        os.remove(f_path)
+                        print("%s removed from %s" % (f_path, sync_dir))
         return True
 
     else:
