@@ -67,7 +67,7 @@
             * -q [file_name/folder_name]: Exclude file/folder when upload, sync.
                 -qc [file_name/folder_name]: Remove from exclusion list.
 
-            * -z [file_name/folder_name]: Sync specified folder to Google drive
+            * -sy [folder_name]: Sync specified folder to Google drive
 
             * -s [file_id] ([mail]) : Outputs the shareable link of the file
                     Multiple mails can be specified by putting mail one after another

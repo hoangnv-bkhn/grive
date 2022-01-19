@@ -283,7 +283,10 @@ def move_file_remote(service, file_id, parent_id, path):
 
 
 def filter_trash(service, instance_id, sync_dir):
-    path, trashed = get_local_path(service, instance_id, sync_dir)
+    try:
+        path, trashed = get_local_path(service, instance_id, sync_dir)
+    except:
+        trashed = True
     if trashed is False:
         return path
     else:
