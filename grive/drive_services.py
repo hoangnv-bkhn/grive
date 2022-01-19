@@ -357,7 +357,7 @@ def get_local_path(service, instance_id, sync_dir):
                 os.setxattr(sync_dir, 'user.id', str.encode(p['id']))
 
         # dir_exists(sync_dir)
-        print(sync_dir)
+        # print(sync_dir)
         return sync_dir, instance.get('labels').get('trashed')
     except:
         return None

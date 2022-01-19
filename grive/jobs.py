@@ -1,8 +1,6 @@
 import os
 import sys
 import pwd
-import hashlib
-import json
 from datetime import datetime
 from crontab import CronTab
 
@@ -46,7 +44,7 @@ def cron_process(arg):
                     gdrive_job = cron.new(command='@reboot grive -by_cron', comment='start Grive')
             else:
                 # when not run as drive_sync from command line
-                if __package__ is None:
+                if len(__package__) == 0:
                     gdrive_job = cron.new(command='/usr/bin/python3 %s -by_cron' % os.path.join(common_utils.dir_path, 'main.py'),
                                           comment='start Grive')
                 # when run as package from command line
@@ -92,3 +90,5 @@ def is_running(remove):  # remove tells if the function was called from stop
 # code to be launched by cron periodically
 def by_cron(service):
     drive_utils.f_sync(service, None)
+    with open("/home/hoangnv/Documents/append.txt", "a+") as f:
+        f.write('\nAccessed on ' + str(datetime.now()))

@@ -394,11 +394,7 @@ def main():
             print(table)
         elif arguments[arg_index] == "-by_cron":
             # modified to get the id and destiny directory
-            if (arg_index + 1) < len(arguments):
-                arg_index += 1
-                # add the Id to same directory on gDrive
-                jobs.by_cron(drive, arguments[arg_index])
-            else:
+            if is_matching(arg_index, len(arguments)):
                 jobs.by_cron(service)
 
         elif arguments[arg_index] == "-restore" or arguments[arg_index] == "restore":
