@@ -233,6 +233,7 @@ def write_config():
 
     try:
         if status_auto_start_before != config['Auto_Start'] and jobs.is_running(False):
+            jobs.cron_process("stop")
             jobs.cron_process("start")
 
         with open(common_utils.config_file, "w") as output:
