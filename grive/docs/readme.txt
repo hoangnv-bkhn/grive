@@ -41,15 +41,17 @@
                     (Default is 'Y')
                 Configuration is stored in config.json as a dictionary which can be manually edited as well
 
-            * -ls [local/remote]
-                Lists all files and folders in your Google Drive (default or when "remote" used)
-                Lists all files and folders in your downloads directory (when "local" used)
+            * -l [foder_id] 
+                Lists all files and folders in your Google Drive and sync directory by id
+                -lr : Lists all files and folders recursively present in the folder id given
 
-            * -ls_trash : Lists all files and folders in your Google Drive trash
+            * -lp [path]
+                Lists all files and folders in your Google Drive and sync directory by path
+                -lpr : Lists all files and folders recursively present in the folder path given
 
-            * -ls_folder [folder_id] : Lists files and folders in the given folder id in your drive
+            * -lt : Lists all files and folders in your Google Drive trash
 
-            * -ls_files [folder_id/"root"] : Lists all files recursively present in the folder id given
+            * -q : Caculate the volume of data used in your Google Drive
 
             * -d [file_id1] [file_id2]: Downloads the given file from your Google Drive
                 User '-do' option with overwrite mode
@@ -64,8 +66,8 @@
                 -uf: Upload file/folder to selected location on Google Drive.
                 -uo: Upload file/folder corresponding to the address given to Google Drive and overwrite mode.
 
-            * -q [file_name/folder_name]: Exclude file/folder when upload, sync.
-                -qc [file_name/folder_name]: Remove from exclusion list.
+            * -e [file_name/folder_name]: Exclude file/folder when upload, sync.
+                -ec [file_name/folder_name]: Remove from exclusion list.
 
             * -sy [folder_name]: Sync specified folder to Google drive
 
@@ -77,7 +79,7 @@
                 -us     : Unshare file ( Specified [mail] = 'all' to unshare file completely)
 
 
-            * -restore [file_id] : Restore files from trash.
+            * -rt [file_id] : Restore files from trash.
 
             * -da [file_id/folder_id]
                 Delete the mentioned file from Google Drive sync directory and Google Drive remote.
@@ -85,6 +87,6 @@
                 -dl [file_name/folder_name] : Delete the mentioned file from Google Drive sync directory
                 -dr [file_id/folder_id] : Delete the mentioned file from Google Drive remote
 
-            * -open, -o  :  Opens the Sync Directory in file explorer
+            * -o  :  Opens the Sync Directory in file explorer
 
-            * -help, -h  :  Show user manual
+            * -h  :  Show user manual

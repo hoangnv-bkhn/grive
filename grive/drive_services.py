@@ -1,5 +1,7 @@
+from asyncio import sleep
 import io
 import os.path
+from random import random
 import sys
 import threading
 import time
@@ -102,6 +104,7 @@ def get_raw_data(service, instance, recursive):
 
 # def download(service, file_id, file_name, save_location, mimetype=None):
 def download(instance):
+    time.sleep(random() * 0.01)
     try:
         # print("Thread : {}".format(threading.current_thread().name))
         thread_index = int(threading.current_thread().name[-1])
@@ -117,9 +120,9 @@ def download(instance):
 
         fd = io.BytesIO()
         download_rate = config_utils.get_network_limitation('download')
-        pb = ProgressBar(total=100, prefix='Downloading ' + instance.get('title'), decimals=0, length=50, fill='X',
-                             zfill='-')
-        # pbar= tqdm(desc='Downloading ' + instance.get('title'),total=100, position= thread_index + 1, ncols = 100)
+        pb = ProgressBar(total=100,prefix ="Dowloading " + ((instance.get('title')[:37] + "...") if len(instance.get('title')) > 37 else "{:<40}".format(instance.get('title'))) ,decimals=0, length=50)
+        # pbar= tqdm(desc='Downloading ' + instance.get('title'),total=100, position= thread_index + 1, \
+        #              ncols = 100)
         if not download_rate:
             downloader = MediaIoBaseDownload(fd=fd, request=request)
             done = False
@@ -128,7 +131,8 @@ def download(instance):
                 status, done = downloader.next_chunk()
                 pb.print_progress_bar(int(status.progress() * 100))
                 # pbar.update(int(status.progress() * 100) - pre)
-                pre = int(status.progress() * 100)
+            #     pre = int(status.progress() * 100)
+            # pbar.close()
         else:
             downloader = MediaIoBaseDownload(fd=fd, request=request, chunksize=download_rate * 1024)
             done = False
@@ -142,8 +146,8 @@ def download(instance):
                 processing_time = stop - start
                 if processing_time < 0.95:
                     time.sleep(0.95 - processing_time)
-                pre = int(status.progress() * 100)
-
+                # pre = int(status.progress() * 100)
+            # pbar.close()
         fd.seek(0)
         with open(instance.get('saveLocation'), 'wb') as f:
             f.write(fd.read())
