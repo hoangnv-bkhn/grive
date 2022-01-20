@@ -37,7 +37,8 @@ setup(
         'google',
         'google-api-python-client',
         'google-auth-httplib2',
-        'google-auth-oauthlib'
+        'google-auth-oauthlib',
+        'console_progressbar'
       ],
     dependency_links=[],
     entry_points={
