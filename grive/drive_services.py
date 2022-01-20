@@ -218,8 +218,10 @@ def upload(instance):
             os.utime(path, (stats.st_atime, common_utils.utc2local(
                 datetime.strptime(file.get('modifiedDate'), '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
         pb.print_progress_bar(int(100))
+        log.send_to_log(2, "[UPLOAD]SUCCESS - Uploading " + path)
         return True
     except:
+        log.send_to_log(1, "[UPLOAD]ERROR - Failed when uploading " + path)
         return False
 
 
@@ -269,33 +271,40 @@ def update_file(service, file_id, path, option):
         stats = os.stat(path)
         os.utime(path, (stats.st_atime, common_utils.utc2local(
             datetime.strptime(updated_file.get('modifiedDate'), '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
+        log.send_to_log(2, "[UPDATE]SUCCESS - Updating " + path)
         return True
     except:
+        log.send_to_log(1, "[UPDATE]ERROR - Failed when updating " + path)
         return None
 
 
 def move_file_remote(service, file_id, parent_id, path):
-    # Retrieve the existing parents to remove
     try:
-        f_exclusive = os.getxattr(path, 'user.excludeUpload')
-        f_exclusive = f_exclusive.decode()
+        # Retrieve the existing parents to remove
+        try:
+            f_exclusive = os.getxattr(path, 'user.excludeUpload')
+            f_exclusive = f_exclusive.decode()
+        except:
+            f_exclusive = None
+        if f_exclusive is not None:
+            if f_exclusive == 'True':
+                return True
+        file = service.files().get(fileId=file_id, fields='parents').execute()
+        previous_parents = ",".join([parent["id"] for parent in file.get('parents')])
+        # Move the file to the new folder
+        file = service.files().update(fileId=file_id,
+                                      addParents=parent_id,
+                                      removeParents=previous_parents,
+                                      fields='id, parents, modifiedDate').execute()
+        stats = os.stat(path)
+        os.utime(path, (stats.st_atime, common_utils.utc2local(
+            datetime.strptime(file.get('modifiedDate'), '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
+        print("Moved %s complete." % common_utils.get_file_name(path))
+        log.send_to_log(2, "[MOVE]SUCCESS - Moving " + path)
+        return True
     except:
-        f_exclusive = None
-    if f_exclusive is not None:
-        if f_exclusive == 'True':
-            return True
-    file = service.files().get(fileId=file_id, fields='parents').execute()
-    previous_parents = ",".join([parent["id"] for parent in file.get('parents')])
-    # Move the file to the new folder
-    file = service.files().update(fileId=file_id,
-                                  addParents=parent_id,
-                                  removeParents=previous_parents,
-                                  fields='id, parents, modifiedDate').execute()
-    stats = os.stat(path)
-    os.utime(path, (stats.st_atime, common_utils.utc2local(
-        datetime.strptime(file.get('modifiedDate'), '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
-    print("Moved %s complete." % common_utils.get_file_name(path))
-    return True
+        log.send_to_log(1, "[MOVE]ERROR - Failed when moving " + path)
+        return False
 
 
 def filter_trash(service, instance_id, sync_dir):

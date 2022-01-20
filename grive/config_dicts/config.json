@@ -4,6 +4,6 @@
   "Auto_Start": false,
   "Network_Speed_Limitation": {
     "Upload_Rate": false,
-    "Download_Rate": 1
+    "Download_Rate": 10
   }
 }
