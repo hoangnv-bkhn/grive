@@ -1333,15 +1333,13 @@ def show_folder(service, folder_id):
         if len(x) > 0:
             local_folder = x[0]
             local_files_list, local_folders_list = f_list_local(local_folder['canonicalPath'], False)
-            # print(remote_files_list)
-            # print(local_files_list)
             compare_and_change_type_show(service, remote_files_list, local_files_list)
 
             result = filter_local_only(local_files_list, remote_files_list)
             for file in result:
                 table.add_row(
                     [(file['title'][:37] + "...") if len(file["title"]) > 37 else "{:<40}".format(file['title']),
-                     file['id'] if file['id'] else '', common_utils.renderTypeShow(file['typeShow']),
+                     "{:<40}".format(""), common_utils.renderTypeShow(file['typeShow']),
                      datetime.fromtimestamp(file['modifiedDate']).strftime("%m/%d/%Y %H:%M"), file['type'],
                      common_utils.sizeof_fmt(common_utils.getFileSize(file))])
 
@@ -1367,7 +1365,7 @@ def show_folder(service, folder_id):
                 file['typeShow'] = 'maytinh'
                 table.add_row(
                     [(file['title'][:37] + "...") if len(file["title"]) > 37 else "{:<40}".format(file['title']),
-                     file['id'] if file['id'] else '', common_utils.renderTypeShow(file['typeShow']),
+                     "{:<40}".format(""), common_utils.renderTypeShow(file['typeShow']),
                      datetime.fromtimestamp(file['modifiedDate']).strftime("%m/%d/%Y %H:%M"), file['type'],
                      common_utils.sizeof_fmt(common_utils.getFileSize(file))])
             is_print = True
