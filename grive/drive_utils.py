@@ -144,6 +144,7 @@ def downloader(service, option, instance_id, save_folder, id_list=None):
 
 def uploader(service, option, path, parent_id, for_sync, id_list=None):
     try:
+        path = os.path.join(os.path.expanduser(Path().resolve()), path)
         path = os.path.normpath(path)
         overwrite = False
         is_local_sync = False
@@ -476,6 +477,10 @@ def get_list_file_for_sync(service, local_path, option):
 def f_sync(service, local_path):
     if local_path is None:
         local_path = config_utils.get_folder_sync_path()
+    else:
+        local_path = os.path.join(os.path.expanduser(Path().resolve()), local_path)
+        if local_path.startswith(config_utils.get_folder_sync_path() + os.sep) is False:
+            return False
     id_list = []
     file_info_local, folder_info_local, file_info, folder_info = get_list_file_for_sync(service, local_path, 'all')
     change_list = None
@@ -736,6 +741,7 @@ def f_remove(drive, mode, paths):
                 else:
                     os.remove(path)
                 print("%s removed from %s" % (path, sync_dir))
+            log.send_to_log(2, "[REMOVE]SUCCESS - Removing " + path)
         return True
 
     elif mode == "remote":
@@ -753,6 +759,8 @@ def f_remove(drive, mode, paths):
                 else:
                     r_file.Trash()
                     print("%s moved to GDrive trash. List files in trash by -lt parameter" % f_name)
+                log.send_to_log(2, "[REMOVE]SUCCESS - Removing " + id)
+
         return True
 
     elif mode == "all":
@@ -786,6 +794,7 @@ def f_remove(drive, mode, paths):
                 else:
                     os.remove(f_path)
                 print("%s removed from %s" % (f_path, sync_dir))
+                log.send_to_log(2, "[REMOVE]SUCCESS - Removing " + f_path)
                 return True
             # check if file_id valid
             list_local, local_folders = f_list_local(sync_dir, True)
@@ -812,6 +821,7 @@ def f_remove(drive, mode, paths):
                     else:
                         os.remove(f_path)
                         print("%s removed from %s" % (f_path, sync_dir))
+            log.send_to_log(2, "[REMOVE]SUCCESS - Removing " + f_path)
         return True
 
     else:
