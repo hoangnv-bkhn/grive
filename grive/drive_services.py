@@ -19,10 +19,12 @@ try:
     import common_utils
     import config_utils
     import auth_utils
+    import log
 except ImportError:
     from . import common_utils
     from . import config_utils
     from . import auth_utils
+    from . import log
 
 
 def get_all_remote_folder(service):
@@ -115,17 +117,17 @@ def download(instance):
 
         fd = io.BytesIO()
         download_rate = config_utils.get_network_limitation('download')
-        # pb = ProgressBar(total=100, prefix='Downloading ' + instance.get('title') ,decimals=0, length=50, fill='X',
-        #                      zfill='-')
-        pbar= tqdm(desc='Downloading ' + instance.get('title'),total=100, position= thread_index + 1, ncols = 100)
+        pb = ProgressBar(total=100, prefix='Downloading ' + instance.get('title'), decimals=0, length=50, fill='X',
+                             zfill='-')
+        # pbar= tqdm(desc='Downloading ' + instance.get('title'),total=100, position= thread_index + 1, ncols = 100)
         if not download_rate:
             downloader = MediaIoBaseDownload(fd=fd, request=request)
             done = False
             pre = 0
             while done is False:
                 status, done = downloader.next_chunk()
-                # pb.print_progress_bar(int(status.progress() * 100))
-                pbar.update(int(status.progress() * 100) - pre)
+                pb.print_progress_bar(int(status.progress() * 100))
+                # pbar.update(int(status.progress() * 100) - pre)
                 pre = int(status.progress() * 100)
         else:
             downloader = MediaIoBaseDownload(fd=fd, request=request, chunksize=download_rate * 1024)
@@ -134,8 +136,8 @@ def download(instance):
             while done is False:
                 start = timeit.default_timer()
                 status, done = downloader.next_chunk()
-                # pb.print_progress_bar(int(status.progress() * 100))
-                pbar.update(int(status.progress() * 100) - pre)
+                pb.print_progress_bar(int(status.progress() * 100))
+                # pbar.update(int(status.progress() * 100) - pre)
                 stop = timeit.default_timer()
                 processing_time = stop - start
                 if processing_time < 0.95:
@@ -147,12 +149,15 @@ def download(instance):
             f.write(fd.read())
             f.close()
     except:
+        log.send_to_log(1, "[DOWNLOAD] ERROR - Failed when downloading '%s' to '%s'" % (instance.get('title'), instance.get('saveLocation')))
         return False
 
     os.setxattr(instance.get('saveLocation'), 'user.id', str.encode(instance.get('id')))
     stats = os.stat(instance.get('saveLocation'))
     os.utime(instance.get('saveLocation'), (stats.st_atime, common_utils.utc2local(
         datetime.strptime(instance.get('modifiedDate'), '%Y-%m-%dT%H:%M:%S.%fZ')).timestamp()))
+
+    log.send_to_log(2, "[DOWNLOAD] SUCCESS - Downloaded '%s' to '%s'" % (instance.get('title'), instance.get('saveLocation')))
 
     return True
 

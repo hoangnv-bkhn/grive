@@ -20,11 +20,13 @@ try:
     import config_utils
     import drive_services
     import tree
+    import log
 except ImportError:
     from . import common_utils
     from . import config_utils
     from . import drive_services
     from . import tree
+    from . import log
 
 
 def downloader(service, option, instance_id, save_folder, id_list=None):
@@ -660,14 +662,20 @@ def sharer(service, option, instance_id, mail):
                         try:
                             result = service.permissions().update(
                                 fileId=instance_id, permissionId=elem['id'], body=elem).execute()
+                            log.send_to_log(2, "[SHARE] SUCCESS - Update file's permission with id '%s'" % instance_id)
                         except:
+                            log.send_to_log(1, "[SHARE] ERROR - Error occur"
+                                               " when update file's permission with id '%s'" % instance_id)
                             print('An error occurred !')
                     else:
                         try:
                             service.permissions().delete(
                                 fileId=instance_id, permissionId=elem['id']).execute()
                             print("Unshare successfully !")
+                            log.send_to_log(2, "[SHARE] SUCCESS - Unshare successfully file with id '%s'" % instance_id)
                         except:
+                            log.send_to_log(1, "[SHARE] ERROR - Error occur"
+                                               " when unshare file with id '%s'" % instance_id)
                             print('An error occurred !')
                 else:
                     print('Failed! \nYou are the owner of this file (folder) !')
@@ -677,8 +685,11 @@ def sharer(service, option, instance_id, mail):
                     service.permissions().delete(
                         fileId=instance_id, permissionId=elem['id']).execute()
                     print("Unshare successfully !")
+                    log.send_to_log(2, "[SHARE] SUCCESS - Unshare successfully file with mode everyone '%s'" % instance_id)
                 except:
                     print('An error occurred !')
+                    log.send_to_log(1, "[SHARE] ERROR - Error occur"
+                                       " when unshare file with mode every one")
 
         if unshared and mail == 'all':
             for elem in list_permissions:
@@ -704,17 +715,21 @@ def sharer(service, option, instance_id, mail):
                     fileId=instance_id, body=new_permission).execute()
             except:
                 print('An error occurred !')
+                log.send_to_log(1, "[SHARE] ERROR - Failed when sharing with"
+                                   " permission '%s' with id '%s'" % (str(new_permission), instance_id))
 
         if result is not None:
             instance = service.files().get(fileId=instance_id,
-                                           fields='alternateLink').execute()
+                                           fields='alternateLink, title').execute()
             print("Share link copied to clipboard!")
             pyperclip.copy(instance['alternateLink'])
             mess = pyperclip.paste()
             print(mess)
+            log.send_to_log(2, "[SHARE] SUCCESS - Shared '%s' to '%s'" % (instance.get('title'), mail))
 
     except:
         print("%s is an invalid id!" % instance_id)
+        log.send_to_log(1, "[SHARE] ERROR - Invalid id '%s'" % instance_id)
 
     return None
 
@@ -913,6 +928,7 @@ def get_info(service, option, instance):
     else:
         if not path_err and not default_opt:
             print('%s is invalid !' % instance)
+            log.send_to_log(1, "[GET INFO] ERROR - Failed when getting file's info with id '%s'" % instance)
 
     # print(result_local)
     # print("=====")

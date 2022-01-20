@@ -65,7 +65,7 @@ def main():
     common_utils.dir_exists(os.path.join(os.environ['HOME'], '.grive'))
     log_path = os.path.join(os.environ['HOME'], '.grive/grive.log')
     if not os.path.exists(log_path):
-        print(log_path)
+        # print(log_path)
         with open(log_path, 'w+') as fp:
             pass
     fh = logging.FileHandler(log_path)
