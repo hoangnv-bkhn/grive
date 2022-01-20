@@ -4,17 +4,14 @@ import os
 from concurrent.futures.thread import ThreadPoolExecutor
 
 from builtins import str
-import re
 import socket
 
 from datetime import datetime
 from pathlib import Path
 
-import prettytable
 from googleapiclient.discovery import build
 from pydrive.drive import GoogleDrive
 from prettytable import PrettyTable
-import time
 
 # list of parameters which require verification
 require_auth = [
@@ -24,7 +21,7 @@ require_auth = [
     "-i", "-if",
     "-s", "-sr", "-sw", "-us",  # share file
     "-u", "-uo", "-uf", "-ufo"
-    "-da", "-dl", "-dr",
+                        "-da", "-dl", "-dr",
     "-l", "-lr", "-lp", "-lpr",
     "-lt",
     "-rt",
@@ -46,7 +43,6 @@ def main():
         import drive_services
         import jobs
         import restore_default
-        import log
 
     # using relativistic imports directly if launched as package
     except ImportError:
@@ -57,7 +53,6 @@ def main():
         from . import drive_services
         from . import jobs
         from . import restore_default
-        from . import log
 
     arguments = sys.argv[1:]
 
@@ -166,11 +161,13 @@ def main():
                 if is_matching(arg_index, len(arguments)):
                     id_list = []
                     if arguments[0] == "-df" or arguments[0] == "-dfo":
-                        save_location = os.path.join(os.path.expanduser(Path().resolve()), arguments[len(arguments) - 1])
+                        save_location = os.path.join(os.path.expanduser(Path().resolve()),
+                                                     arguments[len(arguments) - 1])
                         if os.path.exists(save_location):
                             # save_location = arguments[len(arguments) - 1]
                             for argument in arguments[arg_index: len(arguments) - 1]:
-                                if drive_utils.downloader(service, arguments[0], argument, save_location, id_list) is False:
+                                if drive_utils.downloader(service, arguments[0], argument, save_location,
+                                                          id_list) is False:
                                     print("'%s' is an invalid id !" % argument)
                             with ThreadPoolExecutor(5) as executor:
                                 executor.map(drive_services.download, id_list)
@@ -180,8 +177,8 @@ def main():
                     elif arguments[0] == "-d" or arguments[0] == "-do":
                         for argument in arguments[arg_index: len(arguments)]:
                             save_location, trashed = drive_services.get_local_path(service,
-                                                                                argument,
-                                                                                config_utils.get_folder_sync_path())
+                                                                                   argument,
+                                                                                   config_utils.get_folder_sync_path())
                             if save_location is not None:
                                 drive_utils.downloader(service, arguments[0], argument, save_location, id_list)
                             else:
@@ -230,7 +227,8 @@ def main():
                         status = 'dammay'
                     else:
                         if info_remote['mimeType'] == "application/vnd.google-apps.folder":
-                            if drive_utils.check_remote_dir_files_sync(service, info_remote['id'], info_local['canonicalPath']):
+                            if drive_utils.check_remote_dir_files_sync(service, info_remote['id'],
+                                                                       info_local['canonicalPath']):
                                 status = "dongbo"
                             else:
                                 status = "notdongbo"
@@ -241,9 +239,11 @@ def main():
                                 else:
                                     status = "notdongbo"
                             else:
-                                if info_remote.get('fileSize') is not None and info_remote.get('fileSize') == info_local.get('fileSize'):
+                                if info_remote.get('fileSize') is not None and info_remote.get(
+                                        'fileSize') == info_local.get('fileSize'):
                                     status = "dongbo"
-                                elif info_remote['modifiedDate'] == datetime.utcfromtimestamp(info_local['modifiedDate']).timestamp():
+                                elif info_remote['modifiedDate'] == datetime.utcfromtimestamp(
+                                        info_local['modifiedDate']).timestamp():
                                     info_remote['typeShow'] = "dongbo"
                                 else:
                                     info_remote['typeShow'] = "notdongbo"
@@ -265,7 +265,8 @@ def main():
                         # x.add_row(["Status", info_remote.get('title'), '', ''])
                         x.add_row(["Title", info_remote.get('title'), '\n'])
                         x.add_row(["ID", info_remote.get('id'), '\n'])
-                        x.add_row(["Status", common_utils.renderTypeShow(status) + "   " + (u'\U0001F464' if info_remote['shared'] else ""), '\n'])
+                        x.add_row(["Status", common_utils.renderTypeShow(status) + "   " + (
+                            u'\U0001F464' if info_remote['shared'] else ""), '\n'])
                         x.add_row(["Type", info_remote.get('mimeType'), '\n'])
                         x.add_row(["Modified Date", info_remote.get('modifiedDate'), '\n'])
                         x.add_row(["Created Date", info_remote.get('createdDate'), '\n'])
@@ -301,7 +302,7 @@ def main():
                         print(x)
 
         elif arguments[arg_index] == "-l" or arguments[arg_index] == "-lr" or arguments[arg_index] == "-lp" or \
-                arguments[arg_index] == "-lpr" :
+                arguments[arg_index] == "-lpr":
             if is_connected():
                 root = drive_utils.get_tree_folder(service)
 
@@ -338,9 +339,12 @@ def main():
 
         elif arguments[arg_index] == "-q":
             if is_connected():
-                grive_total = common_utils.sizeof_fmt(int(service.about().get(fields='quotaBytesTotal').execute()['quotaBytesTotal']))
-                grive_usage = common_utils.sizeof_fmt(int(service.about().get(fields='quotaBytesUsed').execute()['quotaBytesUsed']))
-                grive_trash = common_utils.sizeof_fmt(int(service.about().get(fields='quotaBytesUsedInTrash').execute()['quotaBytesUsedInTrash']))
+                grive_total = common_utils.sizeof_fmt(
+                    int(service.about().get(fields='quotaBytesTotal').execute()['quotaBytesTotal']))
+                grive_usage = common_utils.sizeof_fmt(
+                    int(service.about().get(fields='quotaBytesUsed').execute()['quotaBytesUsed']))
+                grive_trash = common_utils.sizeof_fmt(
+                    int(service.about().get(fields='quotaBytesUsedInTrash').execute()['quotaBytesUsedInTrash']))
 
                 drive_audio_usage, drive_photo_usage, drive_movies_usage, drive_document_usage, drive_others_usage = drive_utils.f_calculate_usage_of_folder(
                     service)
@@ -366,24 +370,24 @@ def main():
 
                 trash_files_list = drive_utils.get_all_data(service, "trash", 0)
                 for file in trash_files_list:
-                    # print('%-30s | %50s | %30s | %10s' % (file['title'], file['id'], datetime.utcfromtimestamp(file['modifiedDate']), file['fileSize']))
-                    table.add_row([(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], file['id'],
-                                common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])).strftime(
-                                    "%m/%d/%Y %H:%M"),
-                                file['mimeType'].split(".")[-1],
-                                common_utils.sizeof_fmt(common_utils.getFileSize(file))])
+                    table.add_row(
+                        [(file['title'][:37] + "...") if len(file["title"]) > 37 else file['title'], file['id'],
+                         common_utils.utc2local(datetime.fromtimestamp(file['modifiedDate'])).strftime(
+                             "%m/%d/%Y %H:%M"),
+                         file['mimeType'].split(".")[-1],
+                         common_utils.sizeof_fmt(common_utils.getFileSize(file))])
                 table.align = 'l'
                 print(table)
         elif arguments[arg_index] == "-by_cron":
             if is_connected():
-            # modified to get the id and destiny directory
+                # modified to get the id and destiny directory
                 if is_matching(arg_index, len(arguments)):
                     jobs.by_cron(service)
 
         elif arguments[arg_index] == "-rt":
             arg_index += 1
             if is_connected():
-            # in case of less arguments than required
+                # in case of less arguments than required
                 if is_matching(arg_index, len(arguments)):
                     drive_utils.file_restore(drive, arguments[arg_index:len(arguments)])
                     arg_index = len(arguments)
@@ -395,6 +399,7 @@ def main():
 
         arg_index += 1
 
+
 def check_internet_socket(host="8.8.8.8", port=53, timeout=3):
     try:
         socket.setdefaulttimeout(timeout)
@@ -402,6 +407,7 @@ def check_internet_socket(host="8.8.8.8", port=53, timeout=3):
         return True
     except socket.error as ex:
         return False
+
 
 def is_connected():
     if check_internet_socket():
@@ -416,6 +422,7 @@ def is_matching(index, len_arg):
         print("Error: arguments less than what expected")
         return False
     return True
+
 
 if __name__ == "__main__" and __package__ is None:
     main()

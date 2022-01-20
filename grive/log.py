@@ -18,12 +18,13 @@ if not os.path.exists(log_path):
 # fh = logging.FileHandler(log_path)
 # fh.setLevel(logging.DEBUG)
 # logHandler = handlers.RotatingFileHandler('app.log', maxBytes=5)
-logHandler = logging.handlers.RotatingFileHandler(log_path, maxBytes= 5* 1024 * 1024, backupCount=5)
+logHandler = logging.handlers.RotatingFileHandler(log_path, maxBytes=5 * 1024 * 1024, backupCount=5)
 # logHandler.setLevel(logging.INFO)
 
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logHandler.setFormatter(formatter)
 logger.addHandler(logHandler)
+
 
 def send_to_log(LogType, LogMsg):
     if 3 >= LogType:

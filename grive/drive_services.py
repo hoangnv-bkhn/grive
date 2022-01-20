@@ -9,7 +9,6 @@ import timeit
 from datetime import datetime
 import json
 from console_progressbar import ProgressBar
-from tqdm import *
 
 from googleapiclient.http import MediaIoBaseDownload
 from googleapiclient.http import MediaFileUpload
