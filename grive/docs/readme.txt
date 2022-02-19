@@ -12,10 +12,10 @@
                 Automatically executed at the first run of Grive
 
             * -st
-                Start the automatic Grive syncing of the folders set as upload directories
+                Start the automatic Grive syncing of the folders set as sync Folder
 
             * -x
-                Stop the automatic Grive syncing of the folders set as upload directories
+                Stop the automatic Grive syncing of the folders set as sync Folder
 
             * -y
                 Shows whether Grive is uploading automatically or not.
