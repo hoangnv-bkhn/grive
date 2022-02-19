@@ -123,7 +123,8 @@ def main():
                     id_list = []
                     if arguments[0] == "-uf" or arguments[0] == "-ufo":
                         for argument in arguments[arg_index: len(arguments) - 1]:
-                            if drive_utils.uploader(service, arguments[0], argument, arguments[len(arguments)], False,
+                            if drive_utils.uploader(service, arguments[0], argument, arguments[len(arguments) - 1],
+                                                    False,
                                                     id_list) is False:
                                 print("'%s' is an invalid path !" % argument)
                         with ThreadPoolExecutor(5) as executor:
