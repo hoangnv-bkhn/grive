@@ -479,10 +479,10 @@ def get_list_file_for_sync(service, local_path, option):
 def f_sync(service, local_path):
     if local_path is None:
         local_path = config_utils.get_folder_sync_path()
-    else:
-        local_path = os.path.join(os.path.expanduser(Path().resolve()), local_path)
-        if local_path.startswith(config_utils.get_folder_sync_path() + os.sep) is False:
-            return False
+    # else:
+    #     local_path = os.path.join(os.path.expanduser(Path().resolve()), local_path)
+    #     if local_path.startswith(config_utils.get_folder_sync_path() + os.sep) is False:
+    #         return False
     id_list = []
     file_info_local, folder_info_local, file_info, folder_info = get_list_file_for_sync(service, local_path, 'all')
     change_list = None
@@ -690,7 +690,8 @@ def sharer(service, option, instance_id, mail):
                     service.permissions().delete(
                         fileId=instance_id, permissionId=elem['id']).execute()
                     print("Unshare successfully !")
-                    log.send_to_log(2, "[SHARE] SUCCESS - Unshare successfully file with mode everyone '%s'" % instance_id)
+                    log.send_to_log(2,
+                                    "[SHARE] SUCCESS - Unshare successfully file with mode everyone '%s'" % instance_id)
                 except:
                     print('An error occurred !')
                     log.send_to_log(1, "[SHARE] ERROR - Error occur"

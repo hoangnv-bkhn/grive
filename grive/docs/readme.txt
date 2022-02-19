@@ -23,7 +23,7 @@
             * -v
                 Shows the current version of the Grive.
 
-            * -xs
+            * -z
                 Restore Grive to the default.
 
             * -c : Gives option to edit the configuration file
