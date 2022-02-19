@@ -62,6 +62,12 @@
                 User '-dfo' option with overwrite mode
                 Specify the location to save the file at the end of the command
 
+            * -i [file_path]: Show info of specified File
+                Parameter is local path of File
+
+              -if [file_id1]
+                Parameter is id of File
+
             * -u [file_name/folder_name] : Upload file/folder corresponding to the root given to Google Drive.
                 -uf: Upload file/folder to selected location on Google Drive.
                 -uo: Upload file/folder corresponding to the address given to Google Drive and overwrite mode.

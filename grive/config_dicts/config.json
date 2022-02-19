@@ -1,9 +1,1 @@
-{
-  "Sync_Folder": "Documents/sync_grive",
-  "Sync_Cycle": 1,
-  "Auto_Start": true,
-  "Network_Speed_Limitation": {
-    "Upload_Rate": false,
-    "Download_Rate": false
-  }
-}
+{"Sync_Folder": "Documents/sync_grive", "Sync_Cycle": 1, "Auto_Start": false, "Network_Speed_Limitation": {"Upload_Rate": false, "Download_Rate": false}}

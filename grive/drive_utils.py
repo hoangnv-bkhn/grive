@@ -641,7 +641,7 @@ def sharer(service, option, instance_id, mail):
     try:
         permissions = service.permissions().list(fileId=instance_id).execute()
         list_permissions = permissions.get('items', [])
-        print(list_permissions)
+        # print(list_permissions)
         result = None
 
         unshared = False

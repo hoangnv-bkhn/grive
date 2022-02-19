@@ -92,20 +92,16 @@ def main():
                 print(p_data)
 
         elif arguments[arg_index] == "-re":
-            if is_connected():
-                auth_utils.reset_account()
+            auth_utils.reset_account()
 
         elif arguments[arg_index] == "-st":
-            if is_connected():
-                jobs.cron_process("start")
+            jobs.cron_process("start")
 
         elif arguments[arg_index] == "-x":
-            if is_connected():
-                jobs.cron_process("stop")
+            jobs.cron_process("stop")
 
         elif arguments[arg_index] == "-y":
-            if is_connected():
-                jobs.cron_process("status")
+            jobs.cron_process("status")
 
         elif arguments[arg_index] == "-c":
             if is_connected():

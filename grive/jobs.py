@@ -33,23 +33,43 @@ def cron_process(arg):
             #     comment='start Grive')
 
             startup_on_boot = config_utils.get_auto_start_status()
-            if startup_on_boot:
+            # if startup_on_boot:
+            #     # when not run as drive_sync from command line
+            #     if __package__ is None:
+            #         gdrive_job = cron.new(
+            #             command='@reboot /usr/bin/python3 %s -by_cron' % os.path.join(common_utils.dir_path, 'main.py'),
+            #             comment='start Grive')
+            #     # when run as package from command line
+            #     else:
+            #         gdrive_job = cron.new(command='@reboot grive -by_cron', comment='start Grive')
+            # else:
                 # when not run as drive_sync from command line
-                if __package__ is None:
-                    gdrive_job = cron.new(
-                        command='@reboot /usr/bin/python3 %s -by_cron' % os.path.join(common_utils.dir_path, 'main.py'),
-                        comment='start Grive')
-                # when run as package from command line
-                else:
-                    gdrive_job = cron.new(command='@reboot grive -by_cron', comment='start Grive')
+
+            if len(__package__) == 0:
+                gdrive_job = cron.new(command='/usr/bin/python3 %s -by_cron' % os.path.join(common_utils.dir_path, 'main.py'),
+                                      comment='start Grive')
+            # when run as package from command line
             else:
-                # when not run as drive_sync from command line
-                if len(__package__) == 0:
-                    gdrive_job = cron.new(command='/usr/bin/python3 %s -by_cron' % os.path.join(common_utils.dir_path, 'main.py'),
-                                          comment='start Grive')
-                # when run as package from command line
-                else:
-                    gdrive_job = cron.new(command='grive -by_cron', comment='start Grive')
+                gdrive_job = cron.new(command='grive -by_cron', comment='start Grive')
+
+            check = False
+            if startup_on_boot:
+                for job in cron:
+                    if job.comment == 'startup Grive':
+                        check = True
+                if check is False:
+                    if len(__package__) == 0:
+                        gdrive_start_job = cron.new(
+                            command='/usr/bin/python3 %s -st' % os.path.join(common_utils.dir_path, 'main.py'),
+                            comment='startup Grive')
+                    # when run as package from command line
+                    else:
+                        gdrive_start_job = cron.new(command='grive -st', comment='startup Grive')
+                    gdrive_start_job.every_reboot()
+            else:
+                for job in cron:
+                    if job.comment == 'startup Grive':
+                        cron.remove(job)
 
             gdrive_job.minute.every(config_utils.get_sync_cycle())  # setting to run every n minutes
             cron.write()
