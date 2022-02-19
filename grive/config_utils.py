@@ -113,7 +113,7 @@ def set_network_limitation(value):
             if value[0].lower() == 'upload' and 300 < rate < 5120:
                 config['Network_Speed_Limitation']['Upload_Rate'] = rate
                 return True
-            elif value[0].lower() == 'download' and 300 < rate < 5120:
+            elif value[0].lower() == 'download' and 0 < rate < 5120:
                 config['Network_Speed_Limitation']['Download_Rate'] = rate
                 return True
             else:
